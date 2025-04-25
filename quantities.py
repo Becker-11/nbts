@@ -17,14 +17,8 @@ def ell(
 ) -> float:
     r"""Nb's electron mean-free-path.
 
-    Calculate the mean-free-path :math:`\ell` of Nb's electrons as a result of
-    oxygen doping (e.g., from surface heat-treatments). The calculation makes
-    use of two empirical relationships:
-
-    * The linear proportionality between impurity concentration and residual
-      resistivity :math:`\rho_{0}`\ .
-    * The inverse proportionality between residual resistivity and the
-      mean-free-path :math:`\ell`\ .
+    Calculate the mean-free-path l of Nb's electrons as a result of
+    oxygen doping (e.g., from surface heat-treatments).
 
     Args:
         c: Impurity concentration (at. %).
@@ -49,25 +43,6 @@ def ell(
     nm_per_m = 1e9
     ell_nm = ell_m * nm_per_m      # convert to nm
     return ell_nm
-
-
-
-    # Safeguard against near-zero values in the denominator
-    #denominator = np.maximum(a_0 * c_ppma, epsilon)
-
-    # Calculate the mean-free-path (in m)
-    # ell_m = sigma_0 / ( a_0 * c_ppma ) 
-    # for i, val in enumerate(ell_m):
-    #     if np.isfinite(val) == False or val > 1e100:
-    #         ell_m[i] = 1e100
-
-    # #print(ell_m)
-    # #print(max(ell_m))
-
-
-    # # Convert the mean-free-path to nm
-    # nm_per_m = 1e9
-    # return ell_m * nm_per_m
 
 
 
@@ -172,14 +147,17 @@ def J(
     )
 
 
-def chi(a_imp, n_max=10000):
+def chi(a_imp, n_max=2000) -> float:
     """
     Gor'kov function χ(a_imp) ≈ (8 / [7 ζ(3)]) * sum_{n=0}^∞ [1 / ((2n+1)^2 (2n+1 + a_imp))].
     
     a_imp : float
         The impurity parameter a_imp.
     n_max : int
-        Truncation index for the series (increase until convergence).
+        Truncation index for the series (increase until convergence). Must be the same as Nx, space steps in simulation.
+    
+    Returns:
+        The Gor'kov function χ(a_imp).
     """
     zeta3 = zeta(3, 1)               # ζ(3) via the Hurwitz zeta ζ(s,q) with q=1
     n = np.arange(n_max + 1)        # n = 0,1,2,…,n_max
@@ -200,28 +178,18 @@ def kappa(
     impurities:
     
         κ = κ_clean / χ(a_imp)
-
-    where
-        κ_clean = 0.957 · λ_L / ξ_0
-        a_imp   = 0.882 · ξ_0 / λ_eff
-
-    All lengths are expressed in nanometers (nm).  The function χ(a_imp) is the
-    Gor'kov function, which must be provided separately.
-
     Args:
         lambda_eff (float):  
             Effective magnetic penetration depth λ_eff at finite impurity
             concentration, in nanometers (nm).
         lambda_L (float, optional):  
             Clean-limit London penetration depth λ_L at zero temperature,
-            in nanometers (nm).  Default is 27.0 nm (typical for pure Nb).
+            in nanometers (nm). 
         xi_0 (float, optional):  
             BCS coherence length ξ_0 at zero temperature, in nanometers (nm).
-            Default is 33.0 nm (typical for pure Nb).
 
     Returns:
-        float:  
-            Impurity-corrected Ginzburg–Landau parameter κ (dimensionless).
+        Impurity-corrected Ginzburg–Landau parameter κ (dimensionless).
     """
 
     # convert inputs to nanometers (factor cancels in the κ_clean ratio)
@@ -237,33 +205,27 @@ def kappa(
 
 
 
-def lambda_L_corr(
+def lambda_eff_corr(
     lambda_eff: float,
-    kappa: float,
-    B: float,
     B_c: float = 200.0,
 ) -> float:
     r"""Corrected London penetration depth for an impure superconductor.
 
     λ_corr(B) = [1 + κ (κ + 2³ᐟ²) B² / (8 (κ + 2¹ᐟ²)² B_c²)] · λ_eff
 
-    Args:
+    Args:   
         lambda_eff: zero‐field penetration depth λ (nm)
-        kappa:        Ginzburg–Landau κ
-        B:            applied field (same units as B_c)
         B_c:          thermodynamic critical field (default = 200mT)
 
     Returns:
         field‐corrected λ_corr (nm)
     """
-    # unpack the fractional powers of 2
-    two_sqrt = 2**0.5       # 2¹ᐟ²
-    two_3_2   = 2**1.5      # 2³ᐟ²
-
+    B_0 = B(0, 100, lambda_eff)
+    kappa_val = kappa(lambda_eff)
     correction = (
         1.0
-        + (kappa * (kappa + two_3_2) * B**2)
-          / (8 * (kappa + two_sqrt)**2 * B_c**2)
+        + (kappa_val * (kappa_val + 2**1.5) * B_0**2)
+          / (8 * (kappa_val + 2**0.5)**2 * B_c**2)
     )
     return correction * lambda_eff
 

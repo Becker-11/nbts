@@ -2,7 +2,7 @@ import numpy as np
 from scipy import constants, integrate, interpolate
 import matplotlib.pyplot as plt
 from model import c, u, v
-from quantities import ell, lambda_eff, J, B
+from quantities import ell, lambda_eff, lambda_eff_corr, J, B
 from cn_solver import CNSolver
 from gle_solver import GLESolver
 from dissolution_species import c_O
@@ -10,7 +10,7 @@ import os
 import math
 
 
-def gen_simulation_report(x, o_total, ell_val, lambda_eff_val, u_0, v_0, c_0, t, T, cc):
+def gen_simulation_report(x, o_total, ell_val, lambda_eff_val, lambda_eff_val_corr, u_0, v_0, c_0, t, T, cc):
 
     # 5-panel figure to show the connected quantities
     fig, axes = plt.subplots(
@@ -97,17 +97,25 @@ def gen_simulation_report(x, o_total, ell_val, lambda_eff_val, u_0, v_0, c_0, t,
         zorder=1,
         label="Magnetic Penetration depth",
     )
+    line2, = axes[2].plot(
+        x,
+        lambda_eff_val_corr,
+        "-",
+        zorder=1,
+        label="Corrected $\lambda_{\mathrm{eff.}}$",
+    )
 
     # Add horizontal reference lines
     hline_min = axes[2].axhline(lambda_eff_val.min(), linestyle=":", color="C2", zorder=0, label="Min $\lambda_{\mathrm{eff.}}$")
     hline_max = axes[2].axhline(lambda_eff_val.max(), linestyle=":", color="C1", zorder=0, label="Max $\lambda_{\mathrm{eff.}}$")
+    hline_max_corr = axes[2].axhline(lambda_eff_val_corr.max(), linestyle=":", color="C3", zorder=0, label="Max $\lambda_{\mathrm{eff.}}$ (corr)")
 
     # Set axis labels
     axes[2].set_ylabel(r"$\lambda_{\mathrm{eff.}}$ (nm)")
 
     # Add legend including axhline handles
     #axes[2].legend(handles=[line1, hline_min, hline_max])
-    axes[2].legend(handles=[line1, hline_max, hline_min])
+    axes[2].legend(handles=[line1, line2, hline_max, hline_min, hline_max_corr])
 
 
 
@@ -117,9 +125,15 @@ def gen_simulation_report(x, o_total, ell_val, lambda_eff_val, u_0, v_0, c_0, t,
         lambda_eff_val,
     )
 
+    gle_corr = GLESolver(
+        x,
+        lambda_eff_val_corr,
+    )
+
     # common arguments for the screening/currrent density profiles
     args = (100.0, 0.0, 0.0)
     screening_profile = gle.screening_profile(x, *args)
+    screening_profile_corr = gle_corr.screening_profile(x, *args)
     B_max = B(x, args[0], lambda_eff_val.max())
     B_min = B(x, args[0], lambda_eff_val.min())
 
@@ -130,6 +144,13 @@ def gen_simulation_report(x, o_total, ell_val, lambda_eff_val, u_0, v_0, c_0, t,
         "-",
         zorder=1,
         label="Screening profile",
+    )
+    axes[3].plot(
+        x,
+        screening_profile_corr,
+        "-",
+        zorder=1,
+        label="Corrected screening profile",
     )
     axes[3].plot(
         x,
@@ -152,6 +173,7 @@ def gen_simulation_report(x, o_total, ell_val, lambda_eff_val, u_0, v_0, c_0, t,
     axes[3].legend()
 
     current_density = gle.current_density(x, *args)
+    current_density_corr = gle_corr.current_density(x, *args)
     J_max = J(x, args[0], lambda_eff_val.max())
     J_min = J(x, args[0], lambda_eff_val.min())
     # plot the current density
@@ -161,6 +183,13 @@ def gen_simulation_report(x, o_total, ell_val, lambda_eff_val, u_0, v_0, c_0, t,
         "-",
         zorder=1,
         label="Current density",
+    )
+    axes[4].plot(
+        x,
+        current_density_corr / 1e11,
+        "-",
+        zorder=1,
+        label="Corrected current density",
     )
     axes[4].plot(
         x,
@@ -343,8 +372,9 @@ def main():
 
             # calculate the effective penetration depth using the electron mean-free-path
             lambda_eff_val = lambda_eff(ell_val)
+            lambda_eff_val_corr = lambda_eff_corr(lambda_eff_val)
 
-            gen_simulation_report(x_grid, o_total, ell_val, lambda_eff_val, u_0, v_0, c_0, t, T, cc)
+            gen_simulation_report(x_grid, o_total, ell_val, lambda_eff_val, lambda_eff_val_corr, u_0, v_0, c_0, t, T, cc)
             print(f"Simulation for T = {T-273.15} C and t = {t} h complete. simulation run is {solver.stability}")
 
     print("Simulations complete.")
