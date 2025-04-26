@@ -210,6 +210,7 @@ def lambda_eff_corr(
     B_c: float = 200.0,
 ) -> float:
     r"""Corrected London penetration depth for an impure superconductor.
+        Taking into acount the non-linear meissner effect
 
     λ_corr(B) = [1 + κ (κ + 2³ᐟ²) B² / (8 (κ + 2¹ᐟ²)² B_c²)] · λ_eff
 
