@@ -1,0 +1,12 @@
+# Heating instructions for a ficticious vacuum baking "recipe" for a Nb SRF cavity
+# Note: the "condition" of the first entry MUST be "stable"!
+
+- condition: stable
+  temperature (K): 300.0
+  time (h): 3.75
+- condition: heating
+  temperature (K): 570.0
+  time (h): 4.7
+- condition: cooling
+  temperature (K): 300.0
+  time (h): 29.55

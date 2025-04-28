@@ -91,8 +91,10 @@ def main():
             o_total = U_record[-1]
 
             report = GenSimReport(x_grid, o_total, t, T)
-            report.plot()
-            report.save_data()
+            report.plot_overview()
+            #report.plot()
+            #report.plot_potential_increase()
+            #report.save_data()
             print(f"Simulation for T = {T-273.15} C and t = {t} h complete. simulation run is {solver.stability}")
 
     print("Simulations complete.")
