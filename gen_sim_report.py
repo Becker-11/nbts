@@ -12,13 +12,11 @@ class GenSimReport:
         report = GenSimReport(x, o_total, t, T)
         report.compute()  # compute profiles
         fig = report.plot_overview()
-        fig_corr = report.plot_correlation()
-        fig_pot = report.plot_potential_increase()
     """
 
-    def __init__(self, x_grid, o_total, t, T, root_dir="analysis"):
+    def __init__(self, x, o_total, t, T, root_dir="analysis"):
         # raw inputs
-        self.x = np.asarray(x_grid)
+        self.x = np.asarray(x)
         self.o_total = np.asarray(o_total)
         self.t, self.T = t, T
         self.lambda_0 = 27  # nm: clean-limit penetration depth
@@ -34,8 +32,13 @@ class GenSimReport:
         self.B_dirty = None
         self.J_clean = None
         self.J_dirty = None
-        # output directory
+        # factors
+        self.suppression_factor = None
+        self.enhancement_factor = None
+        self.current_suppression_factor = None
+        # output directory and COMPUTE flag
         self.root_dir = Path(root_dir)
+        self.COMPUTE = False
 
     def compute(self):
         """Compute all physics profiles from the oxygen concentration profile."""
@@ -59,6 +62,16 @@ class GenSimReport:
         self.B_clean = B(self.x, H0, self.lambda_eff_val.min())   # min B
         self.J_dirty = J(self.x, H0, self.lambda_eff_val.max())   # max J
         self.J_clean = J(self.x, H0, self.lambda_eff_val.min())   # min J
+
+        # derived factors
+        J0 = self.J_clean[0]
+        num = self.lambda_0 * J0
+        den = np.clip(self.lambda_eff_val_corr * self.current_density_corr, 1e-10, None)
+        self.suppression_factor = num / den
+        self.enhancement_factor = self.lambda_eff_val_corr / self.lambda_0
+        self.current_suppression_factor = self.current_density_corr / self.J_clean
+
+        self.COMPUTE = True
 
     def _make_folder(self):
         folder = self.root_dir / f"sim_t{self.t:.1f}_T{int(self.T-273.15)}"
@@ -131,10 +144,30 @@ class GenSimReport:
         ax.set_ylim(0, None)
         ax.legend()
 
+    # -- Single-quantity suppression/enhancement plotters --
+    def plot_suppression(self, ax, invert=False):
+        if invert:
+            ax.plot(self.x, 1 / self.suppression_factor, '-', label='Suppression factor (inverse)')
+        else:
+            ax.plot(self.x, self.suppression_factor, '-', label='Suppression factor')
+        ax.set_ylabel('Suppression factor')
+        ax.legend()
+
+    def plot_enhancement(self, ax):
+        ax.plot(self.x, self.enhancement_factor, '-', label='Penetration depth enhancement')
+        ax.set_ylabel(r'$\lambda(x)/\lambda_{clean}$')
+        ax.legend()
+
+    def plot_current_suppression(self, ax):
+        ax.plot(self.x, self.current_suppression_factor, '-', label='Current density suppression')
+        ax.set_ylabel(r'$J(x)/J_{clean}(x)$')
+        ax.set_xlabel(r'$x$ (nm)')
+        ax.legend()
+
     # -- Assemble plots --
     def plot_overview(self):
-        # compute if needed
-        self.compute()
+        if self.COMPUTE is False:
+            self.compute()
         fig, axes = plt.subplots(5, 1,
                                  sharex=True, sharey=False,
                                  figsize=(4.8, 6.4 + 0.5 * 3.2),
@@ -162,4 +195,38 @@ class GenSimReport:
         }
         self.save_report(fig, data, tag='overview')
         return fig
+    
 
+    # -- Assembled suppression_factor figure --
+    def plot_suppression_factor_comparison(self):
+        if self.COMPUTE is False:
+            self.compute()
+        fig, axes = plt.subplots(3, 1, sharex=True, figsize=(5, 8), constrained_layout=True)
+        self.plot_suppression(axes[0], True)
+        self.plot_enhancement(axes[1])
+        self.plot_current_suppression(axes[2])
+        axes[-1].set_xlim(0, 150)
+        plt.suptitle(f"Simulation suppression factor for T = {self.T-273.15:.1f} C and t = {self.t:.1f} h")
+        data = {
+            'suppression_factor':          self.suppression_factor,
+            'enhancement_factor':          self.enhancement_factor,
+            'current_suppression_factor':  self.current_suppression_factor
+        }
+        self.save_report(fig, data, tag='suppression_factor_comparison')
+        return fig
+
+
+    # -- Single-panel suppression factor plotter --
+    def plot_suppression_factor(self):
+        """Single-panel suppression-factor vs x."""
+        if not self.COMPUTE:
+            self.compute()
+        fig, ax = plt.subplots()
+        self.plot_suppression(ax)
+        ax.set_ylim(0, 50)
+        ax.set_xlim(0, 150)
+        ax.set_xlabel(r'$x$ (nm)')
+        ax.set_title(f"Suppression factor at T={self.T-273.15:.1f}°C, t={self.t:.1f}h")
+        data = {'suppression_factor': self.suppression_factor}
+        self.save_report(fig, data, tag='suppression_factor')
+        return fig
