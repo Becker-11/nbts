@@ -1,8 +1,9 @@
 import numpy as np
+import yaml
+import math
+
 from cn_solver import CNSolver
 from gen_sim_report import GenSimReport
-from dissolution_species import c_O
-import math
 
 
 
@@ -47,60 +48,42 @@ def make_temps_c2k(start_c=100, stop_c=400, step_c=10):
     return temps_k
 
 
-def main():
-
-    # array of depth points in nm
-    # note: the large endpoint is necessary for obtaining accurate solutions to the
-    #       generalized london equation later on
-    #x = np.linspace(0, 1000, 10001)
-    times = make_times(0.1, 101, 1)
-    temps = make_temps_c2k(100, 200, 20)
-
-    times = [6]
-    temps = [120+273.15]
-
-    # simulation conditions for the low-temperature baking
-    s_per_min = 60.0
-    min_per_h = 60.0
-    s_per_h = s_per_min * min_per_h
-    #t = 12 * s_per_h  # s
-    #T = 273.15 + 120  # K
-    #t_h = 12 # time of simulation in hours
-    u_0 = 1000.0  # at. % nm
-    v_0 = 10.0  # at. % nm
-    #c_0 = 0.01  # at. % nm
+def load_sim_config(path="sim_config.yml"):
+    with open(path) as f:
+        cfg = yaml.safe_load(f)
+    # build sim‐run durations (in hours) and T list (in K)
+    times = make_times(**cfg["time"])
+    temps = make_temps_c2k(**cfg["temperature"])
+    # initial surface amounts
+    u0, v0 = cfg["initial"]["u0"], cfg["initial"]["v0"]
+    # grid specs
+    grid = cfg["grid"]
+    x_max, n_x, n_t = grid["x_max_nm"], grid["n_x"], grid["t_steps"]
+    return times, temps, u0, v0, x_max, n_x, n_t
 
 
-    DTYPE = np.double
-    # specify the grid
+def main(config_path="sim_config.yml"):
+    times, temps, u0, v0, x_max, n_x, n_t = load_sim_config(config_path)
 
     for T in temps:
-        for t in times:
+        for t_h in times:
+            # spatial grid
+            x_grid = np.linspace(0, x_max, n_x, dtype=float)
 
-            x_max = 1000.0  # boundary lengths: [0.0, x_max] (nm)
-            N_x = 2001  # number of equally spaced grid points within spatial boundaries
-            x_grid = np.linspace(0.0, x_max, N_x, dtype=DTYPE)
-
-            t_max = t * s_per_h  # time domain lengths: [0.0, t_max] (s)
-            N_t = 3001  # number of equally spaced grid points within temporal boundaries
-            t_grid = np.linspace(0.0, t_max, N_t, dtype=DTYPE)
-
-            # TODO: add initial concentration from dissolution_species 
-            solver = CNSolver(T, u_0, v_0, t, x_max, N_x, N_t)
+            # instantiate & run CN solver
+            solver = CNSolver(T, u0, v0, t_h, x_max, n_x, n_t)
             U_record = solver.get_oxygen_profile()
             o_total = U_record[-1]
 
-            report = GenSimReport(x_grid, o_total, t, T)
-            report.compute()
+            # reporting
+            report = GenSimReport(x_grid, o_total, t_h, T)
             report.plot_overview()
             report.plot_suppression_factor()
             report.plot_suppression_factor_comparison()
 
-            print(f"Simulation for T = {T-273.15} C and t = {t} h complete. simulation run is {solver.stability}")
+            print(f"Done: T={T-273.15:.1f}°C, t={t_h:.1f}h, stability={solver.stability}")
 
-    print("Simulations complete.")
-
-    return
+    print("All sims complete.")
 
 if __name__ == "__main__":
     main()

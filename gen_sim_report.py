@@ -82,15 +82,23 @@ class GenSimReport:
         """
         Save a figure and its associated data arrays to disk.
 
-        The figure is saved as {tag}.pdf, and each array in data_dict
-        is saved as {key}.csv in the simulation folder.
+        The figure is saved as {tag}.pdf in the 'plots' subfolder, and each array
+        in data_dict is saved as {key}.csv in the 'data' subfolder of the simulation folder.
         """
+        # base simulation folder
         folder = self._make_folder()
-        # save figure
-        fig_path = folder / f"{tag}.pdf"
+        # create subfolders for plots and data
+        plots_folder = folder / "plots"
+        data_folder = folder / "data"
+        plots_folder.mkdir(parents=True, exist_ok=True)
+        data_folder.mkdir(parents=True, exist_ok=True)
+
+        # save figure to plots folder
+        fig_path = plots_folder / f"{tag}.pdf"
         fig.savefig(fig_path)
         plt.close(fig)
-        # save data arrays
+
+        # save data arrays to data folder
         for key, arr in data_dict.items():
             arr = np.asarray(arr)
             if arr.ndim == 1:
@@ -100,7 +108,7 @@ class GenSimReport:
             else:
                 data_to_save = arr
                 header = ",".join(f"col{i}" for i in range(arr.shape[1]))
-            csv_path = folder / f"{key}.csv"
+            csv_path = data_folder / f"{key}.csv"
             np.savetxt(csv_path, data_to_save, delimiter=",", header=header, comments="")
 
     # -- Single-quantity plotters --
@@ -111,8 +119,8 @@ class GenSimReport:
 
     def plot_mean_free_path(self, ax):
         line, = ax.plot(self.x, self.ell_val, '-', zorder=1, label='Electron Mean-free-path')
-        hmin = ax.axhline(self.ell_val.min(), linestyle=':', color='C1', label='Min $\ell$')
-        hmax = ax.axhline(self.ell_val.max(), linestyle=':', color='C2', label='Max $\ell$')
+        hmin = ax.axhline(self.ell_val.min(), linestyle=':', label='Min $\ell$')
+        hmax = ax.axhline(self.ell_val.max(), linestyle=':', label='Max $\ell$')
         ax.set_ylabel(r'$\ell$ (nm)')
         ax.set_ylim(0, None)
         ax.legend(handles=[line, hmin, hmax])
@@ -120,17 +128,17 @@ class GenSimReport:
     def plot_penetration_depths(self, ax):
         l1, = ax.plot(self.x, self.lambda_eff_val, '-', label='Penetration depth')
         l2, = ax.plot(self.x, self.lambda_eff_val_corr, '-', label='Corrected penetration depth')
-        ax.axhline(self.lambda_eff_val.min(), linestyle=':', color='C2', label='Min $\lambda_{eff}$')
-        ax.axhline(self.lambda_eff_val.max(), linestyle=':', color='C1', label='Max $\lambda_{eff}$')
-        ax.axhline(self.lambda_eff_val_corr.max(), linestyle=':', color='C3', label='Max $\lambda_{eff}$ (corr)')
+        ax.axhline(self.lambda_eff_val.min(), linestyle=':', label='Min $\lambda_{eff}$')
+        ax.axhline(self.lambda_eff_val.max(), linestyle=':', label='Max $\lambda_{eff}$')
+        ax.axhline(self.lambda_eff_val_corr.max(), linestyle=':', label='Max $\lambda_{eff}$ (corr)')
         ax.set_ylabel(r'$\lambda_{eff}$ (nm)')
         ax.legend(handles=[l1, l2])
 
     def plot_screening(self, ax):
         ax.plot(self.x, self.screening_profile, '-', zorder=1, label='Screening profile')
         ax.plot(self.x, self.screening_profile_corr, '-', zorder=1, label='Corrected screening profile')
-        ax.plot(self.x, self.B_dirty, ':', color='C1', zorder=0, label='B(x) dirty')
-        ax.plot(self.x, self.B_clean, ':', color='C2', zorder=0, label='B(x) clean')
+        ax.plot(self.x, self.B_dirty, ':', zorder=0, label='B(x) dirty')
+        ax.plot(self.x, self.B_clean, ':', zorder=0, label='B(x) clean')
         ax.set_ylabel(r'$B(x)$ (G)')
         ax.set_ylim(0, None)
         ax.legend()
@@ -138,8 +146,8 @@ class GenSimReport:
     def plot_current(self, ax):
         ax.plot(self.x, self.current_density/1e11, '-', zorder=1, label='Current density')
         ax.plot(self.x, self.current_density_corr/1e11, '-', zorder=1, label='Corrected current density')
-        ax.plot(self.x, self.J_dirty/1e11, ':', color='C1', zorder=0, label='J(x) dirty')
-        ax.plot(self.x, self.J_clean/1e11, ':', color='C2', zorder=0, label='J(x) clean')
+        ax.plot(self.x, self.J_dirty/1e11, ':', zorder=0, label='J(x) dirty')
+        ax.plot(self.x, self.J_clean/1e11, ':', zorder=0, label='J(x) clean')
         ax.set_ylabel(r'$J(x)$ ($10^{11}$ A m$^{-2}$)')
         ax.set_ylim(0, None)
         ax.legend()
@@ -166,7 +174,7 @@ class GenSimReport:
 
     # -- Assemble plots --
     def plot_overview(self):
-        if self.COMPUTE is False:
+        if not self.COMPUTE:
             self.compute()
         fig, axes = plt.subplots(5, 1,
                                  sharex=True, sharey=False,
@@ -195,11 +203,9 @@ class GenSimReport:
         }
         self.save_report(fig, data, tag='overview')
         return fig
-    
 
-    # -- Assembled suppression_factor figure --
     def plot_suppression_factor_comparison(self):
-        if self.COMPUTE is False:
+        if not self.COMPUTE:
             self.compute()
         fig, axes = plt.subplots(3, 1, sharex=True, figsize=(5, 8), constrained_layout=True)
         self.plot_suppression(axes[0], True)
@@ -215,8 +221,6 @@ class GenSimReport:
         self.save_report(fig, data, tag='suppression_factor_comparison')
         return fig
 
-
-    # -- Single-panel suppression factor plotter --
     def plot_suppression_factor(self):
         """Single-panel suppression-factor vs x."""
         if not self.COMPUTE:
@@ -226,7 +230,7 @@ class GenSimReport:
         ax.set_ylim(0, 50)
         ax.set_xlim(0, 150)
         ax.set_xlabel(r'$x$ (nm)')
-        ax.set_title(f"Suppression factor at T={self.T-273.15:.1f}°C, t={self.t:.1f}h")
+        ax.set_title(f"Suppression factor at T={self.T-273.15:.1f}\u00B0C, t={self.t:.1f}h")
         data = {'suppression_factor': self.suppression_factor}
         self.save_report(fig, data, tag='suppression_factor')
         return fig
