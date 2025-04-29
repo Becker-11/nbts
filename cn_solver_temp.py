@@ -10,7 +10,7 @@ import numpy as np
 from scipy import sparse
 from scipy.sparse import diags
 import matplotlib.pyplot as plt
-from model import D, k, c, q
+from ciovati_model import D, k, c, q
 import dissolution_species
 
 class CNSolver:

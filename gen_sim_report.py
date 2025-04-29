@@ -111,7 +111,7 @@ class GenSimReport:
             csv_path = data_folder / f"{key}.csv"
             np.savetxt(csv_path, data_to_save, delimiter=",", header=header, comments="")
 
-    # -- Single-quantity plotters --
+    # -- Single-quantity plotters, overview quantities --
     def plot_oxygen(self, ax):
         ax.plot(self.x, self.o_total, '-', zorder=2, label='Oxygen Concentration')
         ax.set_ylabel(r'$[\mathrm{O}]$ (at. %)')
