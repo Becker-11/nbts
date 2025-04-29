@@ -11,7 +11,6 @@ from scipy import sparse
 from scipy.sparse import diags
 import matplotlib.pyplot as plt
 from ciovati_model import D, k, c, q
-import dissolution_species
 
 class CNSolver:
     """Crank-Nicolson Solver for 1D Diffusion Problems.
@@ -31,7 +30,7 @@ class CNSolver:
         t_grid (np.ndarray): Temporal grid.
         sigma_u (float): Proportionality term for Crank-Nicolson.
     """
-
+    # TODO: fix parameter order in CNSolver
     def __init__(self, T, u_0=1e3, v_0=1e1, t_h=48, x_max=500.0, N_x=1001, N_t=4001):
         self.T = T
         self.u_0 = u_0
@@ -43,9 +42,8 @@ class CNSolver:
 
         # Constants
         self.D_u = D(T)  # Diffusion coefficient (in nm^2/s)
-        self.c_0 = v_0 + u_0  # Initial concentration
         # TODO: fix initial concentration to use dissolution_species
-        #self.c_0 = dissolution_species.c_Nb2O5(0, T, )  # Initial concentration (Nb2O5)
+        self.c_0 = v_0 + u_0  # Initial concentration
 
         # Spatial and temporal grids
         self.x_grid = np.linspace(0.0, x_max, N_x, dtype=np.double)
