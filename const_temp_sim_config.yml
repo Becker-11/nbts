@@ -1,16 +1,12 @@
 time:
-  start: 100       # h
-  stop: 100        # h
+  start: 6       # h
+  stop: 6        # h
   step: 1       # h
 
 temperature:
-  start_c: 200   # °C
-  stop_c: 200    # °C
+  start_c: 120   # °C
+  stop_c: 120    # °C
   step_c: 1      # °C
-
-bake_profile:
-  start_C: 25.0           # °C
-  ramp_rate_C_per_min: 1.0  # °C/min (same as K/min)
 
 initial:
   u0: 1000.0    # at.%·nm

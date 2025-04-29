@@ -1,6 +1,7 @@
 import numpy as np
 import yaml
 import math
+import argparse
 
 from cn_solver import CNSolver
 from gen_sim_report import GenSimReport
@@ -49,7 +50,7 @@ def make_temps_c2k(start_c=100, stop_c=400, step_c=10):
     return temps_k
 
 
-def load_sim_config(path="sim_config.yml"):
+def load_sim_config(path):
     with open(path) as f:
         cfg = yaml.safe_load(f)
 
@@ -81,7 +82,11 @@ def load_sim_config(path="sim_config.yml"):
 
 
 
-def main(config_path="sim_config.yml"):
+import argparse
+import numpy as np
+# … your other imports …
+
+def main(config_path):
     # load everything
     start_C, ramp_rate, bake_C_list, times_h, u0, v0, x_max, n_x, n_t = \
         load_sim_config(config_path)
@@ -95,13 +100,13 @@ def main(config_path="sim_config.yml"):
 
         for total_h in times_h:
             # 1) generate full T(t) profile in Kelvin
-            time_h, temps_K, t_hold, = gen_temp_profile(
+            time_h, temps_K, t_hold = gen_temp_profile(
                 start_K, bake_K, ramp_rate, total_h, n_t,
                 exp_b=0.18, exp_c=300.0, tol_K=1.0
             )
+
             # 2) run your CN‐solver *with* that profile
-            # TODO: fix parameter order in CNSolver
-            solver = CNSolver(temps_K, u0, v0, total_h, x_max, n_x, n_t)
+            solver = CNSolver(temps_K, time_h, u0, v0, x_max, n_x, n_t)
             U_record = solver.get_oxygen_profile()
             o_total = U_record[-1]
 
@@ -112,11 +117,23 @@ def main(config_path="sim_config.yml"):
             report.plot_suppression_factor_comparison()
 
             print(
-                f"Done: bake={bake_C:.0f}°C, total_time={total_h:.1f}h, stability={solver.stability}")
+                f"Done: bake={bake_C:.0f}°C, total_time={total_h:.1f}h, "
+                f"stability={solver.stability}"
+            )
 
     print("All sims complete.")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Run Nb heat‐treatment simulation sweep from a config YAML."
+    )
+    parser.add_argument(
+        "-c", "--config",
+        metavar="CONFIG",
+        default="sim_config.yml",
+        help="Path to the simulation config file (YAML)."
+    )
+    args = parser.parse_args()
 
+    main(args.config)

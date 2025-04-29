@@ -1,5 +1,6 @@
 import numpy as np
 import yaml
+import argparse
 import math
 
 from cn_solver_const_temp import CNSolver
@@ -47,7 +48,7 @@ def make_temps_c2k(start_c=100, stop_c=400, step_c=10):
     return temps_k
 
 
-def load_sim_config(path="sim_config.yml"):
+def load_sim_config(path):
     with open(path) as f:
         cfg = yaml.safe_load(f)
     # build sim‐run durations (in hours) and T list (in K)
@@ -62,7 +63,7 @@ def load_sim_config(path="sim_config.yml"):
 
 
 
-def main(config_path="sim_config.yml"):
+def main(config_path):
     times, temps, u0, v0, x_max, n_x, n_t = load_sim_config(config_path)
 
     for T in temps:
@@ -86,4 +87,15 @@ def main(config_path="sim_config.yml"):
     print("All sims complete.")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Run Nb heat‐treatment simulation sweep from a config YAML."
+    )
+    parser.add_argument(
+        "-c", "--config",
+        metavar="CONFIG",
+        default="const_temp_sim_config.yml",
+        help="Path to the simulation config file (YAML)."
+    )
+    args = parser.parse_args()
+
+    main(args.config)
