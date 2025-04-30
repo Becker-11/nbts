@@ -4,6 +4,7 @@ import numpy as np
 from gle_solver import GLESolver
 from quantities import ell, lambda_eff, lambda_eff_corr, J, B
 
+
 class GenSimReport:
     """
     Modular report class for SRF simulation outputs.
@@ -242,3 +243,4 @@ class GenSimReport:
         data = {'suppression_factor': self.suppression_factor}
         self.save_report(fig, data, tag='suppression_factor')
         return fig
+    

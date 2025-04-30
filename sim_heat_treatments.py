@@ -58,7 +58,7 @@ def main(config_path):
             )
 
             # 2) run your CN‐solver *with* that profile
-            solver = CNSolver(temps_K, time_h, u0, v0, x_max, n_x, n_t)
+            solver = CNSolver(temps_K, u0, v0, total_h, x_max, n_x, n_t)
             U_record = solver.get_oxygen_profile()
             o_total = U_record[-1]
 

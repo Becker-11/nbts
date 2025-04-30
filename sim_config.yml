@@ -1,6 +1,6 @@
 time:
-  start: 6       # h
-  stop: 6        # h
+  start: 48       # h
+  stop: 48        # h
   step: 1       # h
 
 temperature:
