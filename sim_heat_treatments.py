@@ -6,6 +6,8 @@ from cn_solver import CNSolver
 from gen_sim_report import GenSimReport
 from gen_temp_profile import gen_temp_profile
 
+from test_sim_heat_treatments import test_oxygen_profile
+
 
 def load_sim_config(path):
     with open(path) as f:
@@ -50,6 +52,7 @@ def main(config_path):
     for bake_C in bake_C_list:
         bake_K = bake_C + 273.15
 
+        # TODO: Think about re-naming total_h (confusion between time_h and total_h)
         for total_h in times_h:
             # 1) generate full T(t) profile in Kelvin
             time_h, temps_K, t_hold = gen_temp_profile(
@@ -67,6 +70,12 @@ def main(config_path):
             report.plot_overview()
             report.plot_suppression_factor()
             report.plot_suppression_factor_comparison()
+
+            # Test the simulation results against the Ciovati model
+            test_oxygen_profile(
+                x_grid, total_h, bake_K, o_total, u0, v0,
+                output_dir=f"test/bake_{bake_C:.0f}_h_{total_h:.1f}"
+            )
 
             print(
                 f"Done: bake={bake_C:.0f}°C, total_time={total_h:.1f}h, "
