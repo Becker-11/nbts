@@ -14,6 +14,7 @@ from ciovati_model import D, k, c, q
 import dissolution_species
 
 class CNSolver:
+    # TODO: fix docementation
     """Crank-Nicolson Solver for 1D Diffusion Problems.
 
     This class encapsulates the Crank-Nicolson method to solve diffusion equations
@@ -86,6 +87,8 @@ class CNSolver:
         self.D_u = D(self.T[i])  # Diffusion coefficient (in nm^2/s)
         # Update the stability parameter
         self.r = (self.D_u * self.dt) / (self.dx * self.dx)
+        # TODO: check if r is stable for the maximum T[i] for a given recipe
+        # ...   I think right now it is only showing the last T[i] which will be for a low temperature
         self.stability = "STABLE" if self.r <= 0.5 else "POTENTIAL OSCILLATIONS"
         # Crank-Nicolson proportionality term
         self.sigma = 0.5 * self.r
@@ -125,6 +128,7 @@ class CNSolver:
         
         # return both matrix A and B
         return _A, _B
+
 
     def get_oxygen_profile(self):
         """Solve the diffusion equation using the Crank-Nicolson method.

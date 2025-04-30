@@ -172,6 +172,13 @@ class GenSimReport:
         ax.set_xlabel(r'$x$ (nm)')
         ax.legend()
 
+    def plot_ratio(self, ax):
+        ratio = self.enhancement_factor * self.current_suppression_factor
+        ax.plot(self.x, ratio, '-', label='Ratio of enhancement and suppression')
+        ax.set_ylabel(r'$\lambda(x)/\lambda_{clean} \cdot J(x)/J_{clean}(x)$')
+        ax.set_xlabel(r'$x$ (nm)')
+        ax.legend()
+
     # -- Assemble plots --
     def plot_overview(self):
         if not self.COMPUTE:
@@ -207,10 +214,11 @@ class GenSimReport:
     def plot_suppression_factor_comparison(self):
         if not self.COMPUTE:
             self.compute()
-        fig, axes = plt.subplots(3, 1, sharex=True, figsize=(5, 8), constrained_layout=True)
+        fig, axes = plt.subplots(4, 1, sharex=True, figsize=(5, 8), constrained_layout=True)
         self.plot_suppression(axes[0], True)
         self.plot_enhancement(axes[1])
         self.plot_current_suppression(axes[2])
+        self.plot_ratio(axes[3])
         axes[-1].set_xlim(0, 150)
         plt.suptitle(f"Simulation suppression factor for T = {self.T-273.15:.1f} C and t = {self.t:.1f} h")
         data = {
@@ -227,8 +235,8 @@ class GenSimReport:
             self.compute()
         fig, ax = plt.subplots()
         self.plot_suppression(ax)
-        ax.set_ylim(0, 50)
-        ax.set_xlim(0, 150)
+        ax.set_ylim(0, 5)
+        ax.set_xlim(0, 40)
         ax.set_xlabel(r'$x$ (nm)')
         ax.set_title(f"Suppression factor at T={self.T-273.15:.1f}\u00B0C, t={self.t:.1f}h")
         data = {'suppression_factor': self.suppression_factor}
