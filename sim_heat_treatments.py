@@ -7,12 +7,11 @@ from simulation.cn_solver import CNSolver
 from simulation.cn_solver_const_temp import CNSolver as CNSolverConstTemp
 from simulation.gen_sim_report import GenSimReport
 from simulation.gen_temp_profile import gen_temp_profile
+from simulation.temp_profile import ThreePhaseProfile, ConstantProfile
 from config.sim_config import load_sim_config
 from simulation.ciovati_model import CiovatiModel
 
 from test_sim_heat_treatments import test_oxygen_profile
-
-#from test.test_sim_heat_treatments import test_oxygen_profile
 
 def run_simulation(cfg, sim_const_temp: bool = False):
     """
@@ -45,22 +44,27 @@ def run_simulation(cfg, sim_const_temp: bool = False):
         bake_K = bake_C + 273.15
 
         for total_h in times_h:
-            # choose solver based on const flag
+            # # choose solver based on const flag
+            # if sim_const_temp:
+            #     # constant temperature solver
+            #     solver = CNSolverConstTemp(cfg, bake_K, total_h, civ_model)
+            # else:
+            #     # generate ramp-hold-cool profile
+            #     time_h, temps_K, t_hold = gen_temp_profile(cfg, start_K, bake_K, total_h)
+            #     solver = CNSolver(cfg, temps_K, total_h, civ_model)
+            output_dir = cfg.output.directory
             if sim_const_temp:
-                # constant temperature solver
-                solver = CNSolverConstTemp(cfg, bake_K, total_h, civ_model)
-            else:
-                # generate ramp-hold-cool profile
-                time_h, temps_K, t_hold = gen_temp_profile(cfg, start_K, bake_K, total_h)
+                profile = ConstantProfile(cfg, start_K, bake_K, total_h)
+                time_h, temps_K, t_hold = profile.generate()
                 solver = CNSolver(cfg, temps_K, total_h, civ_model)
-            # simulate
+                output_dir = f"{output_dir}_const_temp"
+            else:
+                profile = ThreePhaseProfile(cfg, start_K, bake_K, total_h)
+                time_h, temps_K, t_hold = profile.generate()
+                solver = CNSolver(cfg, temps_K, total_h, civ_model)
             U_record = solver.get_oxygen_profile()
             o_total   = U_record[-1]
 
-            # reporting
-            output_dir = cfg.output.directory
-            if sim_const_temp:
-                output_dir = f"{output_dir}_const_temp"
             report = GenSimReport(
                 x_grid,
                 o_total,

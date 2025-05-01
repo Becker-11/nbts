@@ -30,12 +30,11 @@ class CNSolver:
         sigma_u (float): Proportionality term for Crank-Nicolson.
     """
 
-    def __init__(self, cfg, T, total_h, civ_model):
+    def __init__(self, cfg, temps_K, total_h, civ_model):
         """Initialize the CNSolver with given parameters."""
         self.q = civ_model.q
         self.D = civ_model.D
         self.k = civ_model.k
-        self.T = T
         self.u_0 = cfg.initial.u0
         self.v_0 = cfg.initial.v0
         self.t_h = total_h
@@ -43,9 +42,7 @@ class CNSolver:
         self.N_x = cfg.grid.n_x
         self.N_t = cfg.grid.n_t
 
-        # Constants
-        #self.D_u = D(T)  # Diffusion coefficient (in nm^2/s)
-        self.D_u = None
+        self.T = temps_K
 
         # TODO: fix initial concentration to use dissolution_species
         #self.c_0 = dissolution_species.c_Nb2O5(0, T, )  # Initial concentration (Nb2O5)
@@ -59,14 +56,8 @@ class CNSolver:
         self.t_grid = np.linspace(0.0, self.t_max, self.N_t, dtype=np.double)
         self.dt = np.diff(self.t_grid)[0]
 
-        # # Stability parameter
-        # self.r = (self.D_u * self.dt) / (self.dx * self.dx)
-        # self.stability = "STABLE" if self.r <= 0.5 else "POTENTIAL OSCILLATIONS"
-
-        # # Crank-Nicolson proportionality term
-        # self.sigma = 0.5 * self.r
-
-
+        # Constants
+        self.D_u = None
         self.r = None
         self.stability = None
         self.sigma = None
