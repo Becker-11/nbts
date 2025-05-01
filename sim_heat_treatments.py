@@ -4,6 +4,7 @@ import argparse
 import os
 
 from solvers.cn_solver import CNSolver
+from solvers.cn_solver_const_temp import CNSolver as CNSolverConstTemp
 from utils.gen_sim_report import GenSimReport
 from utils.gen_temp_profile import gen_temp_profile
 
@@ -42,7 +43,7 @@ def load_sim_config(path):
 
     return start_C, ramp_rate, bake_C_list, times_h, u0, v0, x_max, n_x, n_t
 
-def run_simulation(config_path):
+def run_simulation(config_path, sim_const_temp):
     # load config
     start_C, ramp_rate, bake_C_list, times_h, u0, v0, x_max, n_x, n_t = \
         load_sim_config(config_path)
@@ -55,19 +56,29 @@ def run_simulation(config_path):
         bake_K = bake_C + 273.15
 
         for total_h in times_h:
-            # generate temperature profile
-            time_h, temps_K, t_hold = gen_temp_profile(
-                start_K, bake_K, ramp_rate, total_h, n_t,
-                exp_b=0.18, exp_c=300.0, tol_K=1.0
-            )
 
-            # run solver
-            solver = CNSolver(temps_K, u0, v0, total_h, x_max, n_x, n_t)
+            # --- run simulation ---
+            # use constant temperature profile
+            if sim_const_temp:
+                solver = CNSolverConstTemp(bake_K, u0, v0, total_h, x_max, n_x, n_t)
+            # use ramp-hold-cool temperature profile
+            else:
+                # generate temperature profile
+                time_h, temps_K, t_hold = gen_temp_profile(
+                    start_K, bake_K, ramp_rate, total_h, n_t,
+                    exp_b=0.18, exp_c=300.0, tol_K=1.0
+                )
+
+                # run solver
+                solver = CNSolver(temps_K, u0, v0, total_h, x_max, n_x, n_t)
             U_record = solver.get_oxygen_profile()
             o_total = U_record[-1]
 
             # reporting
-            report = GenSimReport(x_grid, o_total, total_h, bake_K)
+            output_dir = "sim_output"
+            if sim_const_temp: 
+                output_dir = "sim_output_const_temp"
+            report = GenSimReport(x_grid, o_total, total_h, bake_K, output_dir)
             report.plot_overview()
             report.plot_suppression_factor()
             report.plot_suppression_factor_comparison()
@@ -80,7 +91,7 @@ def run_simulation(config_path):
 
             print(
                 f"Done: bake={bake_C:.0f}°C, total_time={total_h:.1f}h, "
-                f"stability={solver.stability}"
+                f"stability={solver.stability}, const_temp={sim_const_temp}"
             )
 
     print("All sims complete.")
@@ -90,7 +101,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Run Nb heat-treatment simulation sweep from a config YAML."
     )
-    # Optional flag
+    # Optional config flag
     parser.add_argument(
         '-c', '--config', dest='config', metavar='CONFIG',
         help="Config file name (in config/) or full path; overrides positional"
@@ -100,22 +111,24 @@ def main():
         'pos_config', nargs='?', metavar='CONFIG',
         help="Config file name (in config/) or full path; default: sim_config.yml"
     )
+    # Constant temperature flag
+    parser.add_argument(
+        '--const', action='store_true', dest='const',
+        help="Use constant temperature profile instead of ramp-hold-cool"
+    )
     args = parser.parse_args()
 
-    # Choose config: -c overrides positional; fallback to default
+    # Determine config name
     config_name = args.config or args.pos_config or "sim_config.yml"
-    # Append .yml if missing
     if not os.path.splitext(config_name)[1]:
         config_name += ".yml"
-
-    # Resolve full path: direct if exists, else in config/
     if os.path.isfile(config_name):
         config_path = config_name
     else:
         config_path = os.path.join("config", config_name)
 
-    run_simulation(config_path)
-
+    # Run with const flag
+    run_simulation(config_path, sim_const_temp=args.const)
 
 if __name__ == "__main__":
     main()
