@@ -40,8 +40,8 @@ def _k(
 
 def k_1(
     T: Sequence[float],
-    A: Annotated[float, 0:None] = 8.0e7,
-    E_A: Annotated[float, 0:None] = 134.0,
+    A: Annotated[float, 0:None] = 9.75e8,
+    E_A: Annotated[float, 0:None] = 133.7,
 ) -> float:
     r"""Rate constant for the dissolution Nb2O5.
 
@@ -63,8 +63,8 @@ def k_1(
 
 def k_2(
     T: Sequence[float],
-    A: Annotated[float, 0:None] = 5.4e10,
-    E_A: Annotated[float, 0:None] = 180.0,
+    A: Annotated[float, 0:None] = 0.15e12,
+    E_A: Annotated[float, 0:None] = 177.0,
 ) -> float:
     r"""Rate constant for the dissolution NbO2.
 
@@ -82,6 +82,29 @@ def k_2(
 
     # evaluate the rate constant
     return _k(T, A, E_A)
+
+
+def D(
+    T: Sequence[float],
+    D_0: Annotated[float, 0:None] = 0.59e-6,
+    E_A: Annotated[float, 0:None] = 109.7,
+) -> Sequence[float]:
+    r"""Diffusion coefficient for interstital oxygen in Nb.
+
+    Diffusion coefficient :math:`D` for interstital oxygen impurities in Nb
+    metal. Its temperature dependence is assumed to follow an Arrhenius form.
+
+    Args:
+        T: Temperature (K).
+        D_0: Pre-exponential factor (m\ :sup:`2` s\ :sup:`-1`\ ).
+        E_A: Activation energy (kJ mol\ :sup:`-1` K\ :sup:`-1`\ ).
+
+    Returns:
+        The rate constant :math:`k_{1}` (s\ :sup:`-1`\ ).
+    """
+
+    # evaluate the diffusiviy
+    return _k(T, D_0, E_A)
 
 
 def c_Nb2O5(
@@ -239,3 +262,35 @@ def c_O(
 
     # evaluate the concentration
     return c_O_max - (numerator / denominator)
+
+
+def dc_O_dt(
+    t: Sequence[float],
+    T: Annotated[float, 0:None],
+    c_Nb2O5_0: Annotated[float, 0:None],
+    c_NbO2_0: Annotated[float, 0:None] = 0.0,
+) -> Sequence[float]:
+    """Time derivative of the concentration of O.
+
+    Args:
+        t: Time (s).
+        T: Temperature (K).
+        c_Nb2O5_0: Initial concentration of Nb2O5 (at. %).
+        c_NbO2_0: Initial concentration of NbO2 (at. %).
+
+    Returns:
+        The time derivative of the concentration of O (at. %).
+    """
+
+    # evaluate the rate constants
+    rate_1 = k_1(T)
+    rate_2 = k_2(T)
+
+    # evaluate the numerator/denominator separately
+    denominator = rate_2 - rate_1
+    numerator = rate_2 * _c_common(t, T, c_Nb2O5_0, c_NbO2_0) + rate_1 * c_Nb2O5_0 * (
+        3 * rate_2 - rate_1
+    ) * np.exp(-rate_1 * t)
+
+    # evaluate the first time-derivative of the concentration
+    return numerator / denominator
