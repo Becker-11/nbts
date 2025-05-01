@@ -1,12 +1,9 @@
 import numpy as np
-import yaml
 import argparse
 import os
 
 from simulation.cn_solver import CNSolver
-from simulation.cn_solver_const_temp import CNSolver as CNSolverConstTemp
-from simulation.gen_sim_report import GenSimReport
-from simulation.gen_temp_profile import gen_temp_profile
+from simulation.sim_report import GenSimReport
 from simulation.temp_profile import ThreePhaseProfile, ConstantProfile
 from config.sim_config import load_sim_config
 from simulation.ciovati_model import CiovatiModel
@@ -44,14 +41,6 @@ def run_simulation(cfg, sim_const_temp: bool = False):
         bake_K = bake_C + 273.15
 
         for total_h in times_h:
-            # # choose solver based on const flag
-            # if sim_const_temp:
-            #     # constant temperature solver
-            #     solver = CNSolverConstTemp(cfg, bake_K, total_h, civ_model)
-            # else:
-            #     # generate ramp-hold-cool profile
-            #     time_h, temps_K, t_hold = gen_temp_profile(cfg, start_K, bake_K, total_h)
-            #     solver = CNSolver(cfg, temps_K, total_h, civ_model)
             output_dir = cfg.output.directory
             if sim_const_temp:
                 profile = ConstantProfile(cfg, start_K, bake_K, total_h)
@@ -77,19 +66,11 @@ def run_simulation(cfg, sim_const_temp: bool = False):
             report.plot_suppression_factor_comparison()
 
             # test against Ciovati model
-            # test_dir = os.path.join(
-            #     "test_output",
-            #     f"bake_{bake_C:.0f}_h_{total_h:.1f}"
-            # )
-            # test_oxygen_profile(
-            #     x_grid,
-            #     total_h,
-            #     bake_C,
-            #     o_total,
-            #     cfg.initial.u0,
-            #     cfg.initial.v0,
-            #     output_dir = test_dir
-            # )
+            test_dir = os.path.join(
+                "test_output",
+                f"bake_{bake_C:.0f}_h_{total_h:.1f}"
+            )
+            test_oxygen_profile(cfg, x_grid, total_h, bake_K, o_total, output_dir=test_dir)
 
             print(
                 f"Done: bake={bake_C:.0f}°C, total_time={total_h:.1f}h, "

@@ -34,6 +34,7 @@ ciovati:
     E_A: 135000.0        # activation energy (eV) (J·mol⁻¹) 
   u0: 1000.0    # initial u-parameter (at.%·nm)
   v0: 10.0      # initial v-parameter (at.%·nm)
+  c0: 0.0       # initial concentration (at.%)
   
 output:
   directory: sim_output    # where to save CSVs & plots

@@ -40,8 +40,9 @@ class CiovatiConfig:
     E_A_D:  float
     k_A:    float
     E_A_k:  float
-    u_0:     float
-    v_0:     float
+    u_0:    float
+    v_0:    float
+    c_0:    float 
 
 @dataclass
 class OutputConfig:
@@ -122,6 +123,7 @@ def load_sim_config(path: str) -> SimConfig:
         E_A_k = k['E_A'],
         u_0  = civ['u0'],
         v_0  = civ['v0'],
+        c_0 = civ['c0'] 
     )
 
     # 7) Output
