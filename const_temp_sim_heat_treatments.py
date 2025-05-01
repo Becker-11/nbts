@@ -6,6 +6,8 @@ import math
 from cn_solver_const_temp import CNSolver
 from gen_sim_report import GenSimReport
 
+from test_sim_heat_treatments import test_oxygen_profile
+
 
 def make_times(start=0.1, stop=96, step=0.5):
     """
@@ -81,6 +83,13 @@ def main(config_path):
             report.plot_overview()
             report.plot_suppression_factor()
             report.plot_suppression_factor_comparison()
+
+            # Test the simulation results against the Ciovati model
+            test_oxygen_profile(
+                x_grid, t_h, T, o_total, u0, v0,
+                output_dir=f"test/bake_{T:.0f}_h_{t_h:.1f}"
+            )
+            
 
             print(f"Done: T={T-273.15:.1f}°C, t={t_h:.1f}h, stability={solver.stability}")
 

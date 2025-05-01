@@ -19,7 +19,7 @@ def test_oxygen_profile(x_grid, time, temp, o_total, u0, v0, output_dir='test'):
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
 
-    print(f'x={max(x_grid)}, time={time}, temp={temp}, u0={u0}, v0={v0}')
+    #print(f'x={max(x_grid)}, time={time}, temp={temp}, u0={u0}, v0={v0}')
     # Compute model concentrations
     time_sec = time * 3600.0  # Convert hours to seconds
     c_model = [ciovati_c(x, time_sec, temp, u0, v0, 0) for x in x_grid]
@@ -39,10 +39,10 @@ def test_oxygen_profile(x_grid, time, temp, o_total, u0, v0, output_dir='test'):
     # Save plot
     filename = os.path.join(output_dir, 'oxygen_profile_comparison.pdf')
     fig.savefig(filename)
-    print(f"Saved plot to {filename}")
+    #print(f"Saved plot to {filename}")
 
     # Optionally display plot
-    plt.show()
+    #plt.show()
 
 def main():
     return

@@ -81,7 +81,7 @@ def main(config_path):
                 f"Done: bake={bake_C:.0f}°C, total_time={total_h:.1f}h, "
                 f"stability={solver.stability}"
             )
-
+    
     print("All sims complete.")
 
 

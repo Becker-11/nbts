@@ -51,6 +51,7 @@ class GenSimReport:
         # GLE solver for screening & current density
         gle = GLESolver(self.x, self.lambda_eff_val)
         gle_corr = GLESolver(self.x, self.lambda_eff_val_corr)
+        # TODO: add applied field parameter to simulation
         args = (100.0, 0.0, 0.0)
         self.screening_profile = gle.screening_profile(self.x, *args)
         self.screening_profile_corr = gle_corr.screening_profile(self.x, *args)
