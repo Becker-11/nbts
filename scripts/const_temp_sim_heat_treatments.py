@@ -3,10 +3,10 @@ import yaml
 import argparse
 import math
 
-from cn_solver_const_temp import CNSolver
-from gen_sim_report import GenSimReport
+from solvers.cn_solver_const_temp import CNSolver
+from utils.gen_sim_report import GenSimReport
 
-from test_sim_heat_treatments import test_oxygen_profile
+from ..test.test_sim_heat_treatments import test_oxygen_profile
 
 
 def make_times(start=0.1, stop=96, step=0.5):

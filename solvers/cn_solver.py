@@ -10,8 +10,8 @@ import numpy as np
 from scipy import sparse, constants
 from scipy.sparse import diags
 import matplotlib.pyplot as plt
-from ciovati_model import D, k, c, q
-import dissolution_species
+from models.ciovati_model import D, k, c, q
+import models.dissolution_species
 
 class CNSolver:
     # TODO: fix docementation

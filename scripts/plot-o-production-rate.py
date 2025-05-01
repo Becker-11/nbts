@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from dissolution_species import dc_O_dt
+from models.dissolution_species import dc_O_dt
 
 
 # initial concentrations

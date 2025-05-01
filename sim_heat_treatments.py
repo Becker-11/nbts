@@ -2,11 +2,11 @@ import numpy as np
 import yaml
 import argparse
 
-from cn_solver import CNSolver
-from gen_sim_report import GenSimReport
-from gen_temp_profile import gen_temp_profile
+from solvers.cn_solver import CNSolver
+from utils.gen_sim_report import GenSimReport
+from utils.gen_temp_profile import gen_temp_profile
 
-from test_sim_heat_treatments import test_oxygen_profile
+from test.test_sim_heat_treatments import test_oxygen_profile
 
 
 def load_sim_config(path):
