@@ -2,11 +2,12 @@ import numpy as np
 import yaml
 import argparse
 import math
+import os
 
 from solvers.cn_solver_const_temp import CNSolver
 from utils.gen_sim_report import GenSimReport
 
-from ..test.test_sim_heat_treatments import test_oxygen_profile
+from test_sim_heat_treatments import test_oxygen_profile
 
 
 def make_times(start=0.1, stop=96, step=0.5):
@@ -63,23 +64,22 @@ def load_sim_config(path):
     x_max, n_x, n_t = grid["x_max_nm"], grid["n_x"], grid["t_steps"]
     return times, temps, u0, v0, x_max, n_x, n_t
 
-
-
-def main(config_path):
+def run_simulation(config_path):
+    # load config
     times, temps, u0, v0, x_max, n_x, n_t = load_sim_config(config_path)
+
+    # pre-compute constants
+    x_grid = np.linspace(0, x_max, n_x)
 
     for T in temps:
         for t_h in times:
-            # spatial grid
-            x_grid = np.linspace(0, x_max, n_x, dtype=float)
-
             # instantiate & run CN solver
             solver = CNSolver(T, u0, v0, t_h, x_max, n_x, n_t)
             U_record = solver.get_oxygen_profile()
             o_total = U_record[-1]
 
             # reporting
-            report = GenSimReport(x_grid, o_total, t_h, T)
+            report = GenSimReport(x_grid, o_total, t_h, T, "sim_output_const_temp")
             report.plot_overview()
             report.plot_suppression_factor()
             report.plot_suppression_factor_comparison()
@@ -89,22 +89,43 @@ def main(config_path):
                 x_grid, t_h, T, o_total, u0, v0,
                 output_dir=f"test/bake_{T:.0f}_h_{t_h:.1f}"
             )
-            
 
-            print(f"Done: T={T-273.15:.1f}°C, t={t_h:.1f}h, stability={solver.stability}")
+            print(f"Done: T={T-273.15:.1f}°C, t={t_h:.1f}h")
 
     print("All sims complete.")
 
-if __name__ == "__main__":
+
+
+def main():
     parser = argparse.ArgumentParser(
-        description="Run Nb heat‐treatment simulation sweep from a config YAML."
+        description="Run Nb heat-treatment simulation sweep from a config YAML."
     )
+    # Optional flag
     parser.add_argument(
-        "-c", "--config",
-        metavar="CONFIG",
-        default="const_temp_sim_config.yml",
-        help="Path to the simulation config file (YAML)."
+        '-c', '--config', dest='config', metavar='CONFIG',
+        help="Config file name (in config/) or full path; overrides positional"
+    )
+    # Positional config argument
+    parser.add_argument(
+        'pos_config', nargs='?', metavar='CONFIG',
+        help="Config file name (in config/) or full path; default: const_temp_sim_config.yml"
     )
     args = parser.parse_args()
 
-    main(args.config)
+    # Choose config: -c overrides positional; fallback to default
+    config_name = args.config or args.pos_config or "const_temp_sim_config.yml"
+    # Append .yml if missing
+    if not os.path.splitext(config_name)[1]:
+        config_name += ".yml"
+
+    # Resolve full path: direct if exists, else in config/
+    if os.path.isfile(config_name):
+        config_path = config_name
+    else:
+        config_path = os.path.join("config", config_name)
+
+    run_simulation(config_path)
+
+
+if __name__ == "__main__":
+    main()

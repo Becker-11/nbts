@@ -1,12 +1,15 @@
 import numpy as np
 import yaml
 import argparse
+import os
 
 from solvers.cn_solver import CNSolver
 from utils.gen_sim_report import GenSimReport
 from utils.gen_temp_profile import gen_temp_profile
 
-from test.test_sim_heat_treatments import test_oxygen_profile
+from test_sim_heat_treatments import test_oxygen_profile
+
+#from test.test_sim_heat_treatments import test_oxygen_profile
 
 
 def load_sim_config(path):
@@ -39,39 +42,37 @@ def load_sim_config(path):
 
     return start_C, ramp_rate, bake_C_list, times_h, u0, v0, x_max, n_x, n_t
 
-
-def main(config_path):
-    # load everything
+def run_simulation(config_path):
+    # load config
     start_C, ramp_rate, bake_C_list, times_h, u0, v0, x_max, n_x, n_t = \
         load_sim_config(config_path)
 
-    # pre‐compute constants
+    # pre-compute constants
     start_K = start_C + 273.15
     x_grid  = np.linspace(0, x_max, n_x)
 
     for bake_C in bake_C_list:
         bake_K = bake_C + 273.15
 
-        # TODO: Think about re-naming total_h (confusion between time_h and total_h)
         for total_h in times_h:
-            # 1) generate full T(t) profile in Kelvin
+            # generate temperature profile
             time_h, temps_K, t_hold = gen_temp_profile(
                 start_K, bake_K, ramp_rate, total_h, n_t,
                 exp_b=0.18, exp_c=300.0, tol_K=1.0
             )
 
-            # 2) run your CN‐solver *with* that profile
+            # run solver
             solver = CNSolver(temps_K, u0, v0, total_h, x_max, n_x, n_t)
             U_record = solver.get_oxygen_profile()
             o_total = U_record[-1]
 
-            # 3) reporting
+            # reporting
             report = GenSimReport(x_grid, o_total, total_h, bake_K)
             report.plot_overview()
             report.plot_suppression_factor()
             report.plot_suppression_factor_comparison()
 
-            # Test the simulation results against the Ciovati model
+            # test against Ciovati model
             test_oxygen_profile(
                 x_grid, total_h, bake_K, o_total, u0, v0,
                 output_dir=f"test/bake_{bake_C:.0f}_h_{total_h:.1f}"
@@ -81,20 +82,40 @@ def main(config_path):
                 f"Done: bake={bake_C:.0f}°C, total_time={total_h:.1f}h, "
                 f"stability={solver.stability}"
             )
-    
+
     print("All sims complete.")
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(
-        description="Run Nb heat‐treatment simulation sweep from a config YAML."
+        description="Run Nb heat-treatment simulation sweep from a config YAML."
     )
+    # Optional flag
     parser.add_argument(
-        "-c", "--config",
-        metavar="CONFIG",
-        default="sim_config.yml",
-        help="Path to the simulation config file (YAML)."
+        '-c', '--config', dest='config', metavar='CONFIG',
+        help="Config file name (in config/) or full path; overrides positional"
+    )
+    # Positional config argument
+    parser.add_argument(
+        'pos_config', nargs='?', metavar='CONFIG',
+        help="Config file name (in config/) or full path; default: sim_config.yml"
     )
     args = parser.parse_args()
 
-    main(args.config)
+    # Choose config: -c overrides positional; fallback to default
+    config_name = args.config or args.pos_config or "sim_config.yml"
+    # Append .yml if missing
+    if not os.path.splitext(config_name)[1]:
+        config_name += ".yml"
+
+    # Resolve full path: direct if exists, else in config/
+    if os.path.isfile(config_name):
+        config_path = config_name
+    else:
+        config_path = os.path.join("config", config_name)
+
+    run_simulation(config_path)
+
+
+if __name__ == "__main__":
+    main()

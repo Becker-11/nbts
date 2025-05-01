@@ -15,7 +15,7 @@ class GenSimReport:
         fig = report.plot_overview()
     """
 
-    def __init__(self, x, o_total, t, T, root_dir="analysis"):
+    def __init__(self, x, o_total, t, T, root_dir="sim_output"):
         # raw inputs
         self.x = np.asarray(x)
         self.o_total = np.asarray(o_total)
