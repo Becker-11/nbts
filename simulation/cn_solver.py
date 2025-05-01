@@ -5,12 +5,9 @@ Adapted from: https://georg.io/2013/12/03/Crank_Nicolson
 see also: https://math.stackexchange.com/a/3311598
 """
 
-from datetime import datetime
 import numpy as np
-from scipy import sparse, constants
-from scipy.sparse import diags
-import matplotlib.pyplot as plt
-from simulation.ciovati_model import D, k, c, q
+from scipy import sparse
+from simulation.ciovati_model import D, q
 import simulation.dissolution_species
 
 class CNSolver:

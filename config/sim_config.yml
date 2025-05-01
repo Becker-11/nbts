@@ -1,22 +1,42 @@
 time:
-  start: 48       # h
-  stop: 48        # h
-  step: 1       # h
+  start_h: 48         # start time (h)
+  stop_h: 48         # stop time (h)
+  step_h: 1          # time step (h)
 
 temperature:
-  start_c: 120   # °C
-  stop_c: 120    # °C
-  step_c: 1      # °C
+  start_C: 120.0      # start temp (°C)
+  stop_C: 120.0      # stop temp (°C)
+  step_C: 1.0        # temp step (°C)
 
-bake_profile:
-  start_C: 25.0           # °C
-  ramp_rate_C_per_min: 1.0  # °C/min (same as K/min)
-
-initial:
-  u0: 1000.0    # at.%·nm
-  v0: 10.0      # at.%·nm
+temp_profile:
+  start_C: 25.0             # initial temp for profile (°C)
+  ramp_rate_C_per_min: 1.0  # ramp rate (°C/min)
+  exp_b: 0.18               # cooling rate constant (1/h)
+  exp_c: 300.0              # asymptotic temp (K)
+  tol_K: 1.0                # cooling stop tolerance (K)
 
 grid:
-  x_max_nm: 1000.0   # spatial domain [0, x_max], in nm
-  n_x:     2001      # number of spatial grid points
-  t_steps: 3001      # number of time‐grid points (solver resolution)
+  x_max_nm: 1000.0   # maximum depth (nm)
+  n_x: 2001          # spatial grid points
+  n_t: 3001          # time grid points
+
+initial:
+  u0: 1000.0    # initial u-parameter (at.%·nm)
+  v0: 10.0      # initial v-parameter (at.%·nm)
+  lambda_0_nm: 27.0        # clean‐limit penetration depth (nm)
+
+ciovati:
+  D:
+    D_0: 0.0138     # diffusion prefactor (cm^2 /s)
+    E_A: 111530       # activation energy (eV)(J·mol⁻¹) 
+  k:
+    A: 3.0e9        # reaction prefactor (1/s)
+    E_A: 135000        # activation energy (eV) (J·mol⁻¹) 
+  
+output:
+  directory: sim_output    # where to save CSVs & plots
+
+args:
+  applied_field_mT: 100.0   # applied magnetic field (mT)
+  dead_layer_nm: 0      # dead‐layer thickness (nm)
+  demag_factor: 0        # demagnetization factor (unitless)

@@ -15,11 +15,12 @@ class GenSimReport:
         fig = report.plot_overview()
     """
 
-    def __init__(self, x, o_total, t, T, root_dir="sim_output"):
+    def __init__(self, x, o_total, t, T, output_dir="sim_output"):
         # raw inputs
         self.x = np.asarray(x)
         self.o_total = np.asarray(o_total)
-        self.t, self.T = t, T
+        self.t = t
+        self.T = T
         self.lambda_0 = 27  # nm: clean-limit penetration depth
         # placeholders for computed arrays
         self.ell_val = None
@@ -38,7 +39,7 @@ class GenSimReport:
         self.enhancement_factor = None
         self.current_suppression_factor = None
         # output directory and COMPUTE flag
-        self.root_dir = Path(root_dir)
+        self.output_dir = Path(output_dir)
         self.COMPUTE = False
 
     def compute(self):
@@ -76,7 +77,7 @@ class GenSimReport:
         self.COMPUTE = True
 
     def _make_folder(self):
-        folder = self.root_dir / f"sim_t{self.t:.1f}_T{int(self.T-273.15)}"
+        folder = self.output_dir / f"sim_t{self.t:.1f}_T{int(self.T-273.15)}"
         folder.mkdir(parents=True, exist_ok=True)
         return folder
 
