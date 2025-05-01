@@ -7,12 +7,14 @@ see also: https://math.stackexchange.com/a/3311598
 
 from datetime import datetime
 import numpy as np
-from scipy import sparse
+from scipy import sparse, constants
 from scipy.sparse import diags
 import matplotlib.pyplot as plt
-from models.ciovati_model import D, k, c, q
+from simulation.ciovati_model import D, k, c, q
+import simulation.dissolution_species
 
 class CNSolver:
+    # TODO: fix docementation
     """Crank-Nicolson Solver for 1D Diffusion Problems.
 
     This class encapsulates the Crank-Nicolson method to solve diffusion equations
@@ -30,7 +32,7 @@ class CNSolver:
         t_grid (np.ndarray): Temporal grid.
         sigma_u (float): Proportionality term for Crank-Nicolson.
     """
-    # TODO: fix parameter order in CNSolver
+
     def __init__(self, T, u_0=1e3, v_0=1e1, t_h=48, x_max=500.0, N_x=1001, N_t=4001):
         self.T = T
         self.u_0 = u_0
@@ -41,9 +43,13 @@ class CNSolver:
         self.N_t = N_t
 
         # Constants
-        self.D_u = D(T)  # Diffusion coefficient (in nm^2/s)
-        # TODO: fix initial concentration to use dissolution_species
+        #self.D_u = D(T)  # Diffusion coefficient (in nm^2/s)
+        self.D_u = None
+
+        
         self.c_0 = v_0 + u_0  # Initial concentration
+        # TODO: fix initial concentration to use dissolution_species
+        #self.c_0 = dissolution_species.c_Nb2O5(0, T, )  # Initial concentration (Nb2O5)
 
         # Spatial and temporal grids
         self.x_grid = np.linspace(0.0, x_max, N_x, dtype=np.double)
@@ -54,15 +60,20 @@ class CNSolver:
         self.t_grid = np.linspace(0.0, self.t_max, N_t, dtype=np.double)
         self.dt = np.diff(self.t_grid)[0]
 
-        # Stability parameter
-        self.r = (self.D_u * self.dt) / (self.dx * self.dx)
-        self.stability = "STABLE" if self.r <= 0.5 else "POTENTIAL OSCILLATIONS"
+        # # Stability parameter
+        # self.r = (self.D_u * self.dt) / (self.dx * self.dx)
+        # self.stability = "STABLE" if self.r <= 0.5 else "POTENTIAL OSCILLATIONS"
 
-        # Crank-Nicolson proportionality term
-        self.sigma = 0.5 * self.r
+        # # Crank-Nicolson proportionality term
+        # self.sigma = 0.5 * self.r
 
 
-    def gen_sparse_matrices(self):      
+        self.r = None
+        self.stability = None
+        self.sigma = None
+
+
+    def gen_sparse_matrices(self, i):      
         """Generate the sparse matrices "A" and "B" used by the Crank-Nicolson method.
         
         Args:
@@ -72,7 +83,16 @@ class CNSolver:
         Returns:
             The (sparse) matrices A and B.
         """
-        
+        # Initialize the diffusion coefficient for time t
+        self.D_u = D(self.T[i])  # Diffusion coefficient (in nm^2/s)
+        # Update the stability parameter
+        self.r = (self.D_u * self.dt) / (self.dx * self.dx)
+        # TODO: check if r is stable for the maximum T[i] for a given recipe
+        # ...   I think right now it is only showing the last T[i] which will be for a low temperature
+        self.stability = "STABLE" if self.r <= 0.5 else "POTENTIAL OSCILLATIONS"
+        # Crank-Nicolson proportionality term
+        self.sigma = 0.5 * self.r
+
         # common sparse matrix parameters
         _offsets = [1, 0, -1]
         _shape = (self.N_x, self.N_x)
@@ -109,6 +129,7 @@ class CNSolver:
         # return both matrix A and B
         return _A, _B
 
+
     def get_oxygen_profile(self):
         """Solve the diffusion equation using the Crank-Nicolson method.
 
@@ -125,10 +146,10 @@ class CNSolver:
                 U_record[i] = U_initial.toarray()
             else:
                 # Source term (plane source at x = 0)
-                f_vec = sparse.csr_array([q(t, self.T) * (self.dt / self.dx)] + [0] * (self.N_x - 1))
+                f_vec = sparse.csr_array([q(t, self.T[i]) * (self.dt / self.dx)] + [0] * (self.N_x - 1))
 
                 # Generate matrices (could be precomputed if D_u is constant)
-                A, B = self.gen_sparse_matrices()
+                A, B = self.gen_sparse_matrices(i)
 
                 # Solve for the next time step
                 U = sparse.csr_array(U_record[i - 1])

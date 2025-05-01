@@ -1,8 +1,8 @@
 import os
 import matplotlib.pyplot as plt
-from models.ciovati_model import c as ciovati_c
+from simulation.ciovati_model import c as ciovati_c
 
-def test_oxygen_profile(x_grid, time, temp, o_total, u0, v0, output_dir='test'):
+def test_oxygen_profile(x_grid, time, temp, o_total, u0, v0, output_dir='test_output'):
     """
     Plot simulation results against Ciovati model predictions and save to output_dir.
 

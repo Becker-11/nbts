@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from models.dissolution_species import c_Nb2O5, c_NbO2, c_NbO, c_O
+from simulation.dissolution_species import c_Nb2O5, c_NbO2, c_NbO, c_O
 
 
 # initial concentrations

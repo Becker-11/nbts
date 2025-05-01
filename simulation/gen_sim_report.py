@@ -1,8 +1,8 @@
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
-from solvers.gle_solver import GLESolver
-from utils.quantities import ell, lambda_eff, lambda_eff_corr, J, B
+from simulation.gle_solver import GLESolver
+from simulation.quantities import ell, lambda_eff, lambda_eff_corr, J, B
 
 
 class GenSimReport:

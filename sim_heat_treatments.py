@@ -3,10 +3,10 @@ import yaml
 import argparse
 import os
 
-from solvers.cn_solver import CNSolver
-from solvers.cn_solver_const_temp import CNSolver as CNSolverConstTemp
-from utils.gen_sim_report import GenSimReport
-from utils.gen_temp_profile import gen_temp_profile
+from simulation.cn_solver import CNSolver
+from simulation.cn_solver_const_temp import CNSolver as CNSolverConstTemp
+from simulation.gen_sim_report import GenSimReport
+from simulation.gen_temp_profile import gen_temp_profile
 
 from test_sim_heat_treatments import test_oxygen_profile
 
@@ -86,7 +86,7 @@ def run_simulation(config_path, sim_const_temp):
             # test against Ciovati model
             test_oxygen_profile(
                 x_grid, total_h, bake_K, o_total, u0, v0,
-                output_dir=f"test/bake_{bake_C:.0f}_h_{total_h:.1f}"
+                output_dir=f"test_output/bake_{bake_C:.0f}_h_{total_h:.1f}"
             )
 
             print(
