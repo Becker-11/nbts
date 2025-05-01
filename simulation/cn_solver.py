@@ -145,7 +145,6 @@ class CNSolver:
                 U_record[i] = U_initial.toarray()
             else:
                 # Source term (plane source at x = 0)
-                print(f"t: {t}, T: {self.T[i]}")
                 f_vec = sparse.csr_array([self.q(t, self.T[i]) * (self.dt / self.dx)] + [0] * (self.N_x - 1))
 
                 # Generate matrices (could be precomputed if D_u is constant)

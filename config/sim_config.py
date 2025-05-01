@@ -84,9 +84,6 @@ def load_sim_config(path: str) -> SimConfig:
         stop_C  = tmp['stop_C'],
         step_C  = tmp['step_C'],
     )
-    # build actual arrays
-    times_h     = np.arange(time_cfg.start_h, time_cfg.stop_h + time_cfg.step_h, time_cfg.step_h)
-    bake_C_list = np.arange(temp_cfg.start_C, temp_cfg.stop_C + temp_cfg.step_C, temp_cfg.step_C)
 
     # 3) Profile
     pp = raw['temp_profile']

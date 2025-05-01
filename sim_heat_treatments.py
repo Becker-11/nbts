@@ -49,38 +49,10 @@ def run_simulation(cfg, sim_const_temp: bool = False):
             if sim_const_temp:
                 # constant temperature solver
                 solver = CNSolverConstTemp(cfg, bake_K, total_h, civ_model)
-                # solver = CNSolverConstTemp(
-                #     bake_K,
-                #     cfg.initial.u0,
-                #     cfg.initial.v0,
-                #     total_h,
-                #     cfg.grid.x_max_nm,
-                #     cfg.grid.n_x,
-                #     cfg.grid.n_t
-                # )
             else:
                 # generate ramp-hold-cool profile
-                time_h, temps_K, t_hold = gen_temp_profile(
-                    start_K,
-                    bake_K,
-                    cfg.temp_profile.ramp_rate_C_per_min,
-                    total_h,
-                    cfg.grid.n_t,
-                    exp_b  = cfg.temp_profile.exp_b,
-                    exp_c  = cfg.temp_profile.exp_c,
-                    tol_K  = cfg.temp_profile.tol_K
-                )
+                time_h, temps_K, t_hold = gen_temp_profile(cfg, start_K, bake_K, total_h)
                 solver = CNSolver(cfg, temps_K, total_h, civ_model)
-                # solver = CNSolver(
-                #     temps_K,
-                #     cfg.initial.u0,
-                #     cfg.initial.v0,
-                #     total_h,
-                #     cfg.grid.x_max_nm,
-                #     cfg.grid.n_x,
-                #     cfg.grid.n_t
-                # )
-
             # simulate
             U_record = solver.get_oxygen_profile()
             o_total   = U_record[-1]
