@@ -8,6 +8,7 @@ from simulation.cn_solver_const_temp import CNSolver as CNSolverConstTemp
 from simulation.gen_sim_report import GenSimReport
 from simulation.gen_temp_profile import gen_temp_profile
 from config.sim_config import load_sim_config
+from simulation.ciovati_model import CiovatiModel
 
 from test_sim_heat_treatments import test_oxygen_profile
 
@@ -37,6 +38,9 @@ def run_simulation(cfg, sim_const_temp: bool = False):
     start_K = cfg.temp_profile.start_C + 273.15
     x_grid  = np.linspace(0, cfg.grid.x_max_nm, cfg.grid.n_x)
 
+    # initialize ciovati model
+    civ_model = CiovatiModel(cfg.ciovati)
+
     for bake_C in bake_C_list:
         bake_K = bake_C + 273.15
 
@@ -44,15 +48,16 @@ def run_simulation(cfg, sim_const_temp: bool = False):
             # choose solver based on const flag
             if sim_const_temp:
                 # constant temperature solver
-                solver = CNSolverConstTemp(
-                    bake_K,
-                    cfg.initial.u0,
-                    cfg.initial.v0,
-                    total_h,
-                    cfg.grid.x_max_nm,
-                    cfg.grid.n_x,
-                    cfg.grid.n_t
-                )
+                solver = CNSolverConstTemp(cfg, bake_K, total_h, civ_model)
+                # solver = CNSolverConstTemp(
+                #     bake_K,
+                #     cfg.initial.u0,
+                #     cfg.initial.v0,
+                #     total_h,
+                #     cfg.grid.x_max_nm,
+                #     cfg.grid.n_x,
+                #     cfg.grid.n_t
+                # )
             else:
                 # generate ramp-hold-cool profile
                 time_h, temps_K, t_hold = gen_temp_profile(
@@ -65,15 +70,16 @@ def run_simulation(cfg, sim_const_temp: bool = False):
                     exp_c  = cfg.temp_profile.exp_c,
                     tol_K  = cfg.temp_profile.tol_K
                 )
-                solver = CNSolver(
-                    temps_K,
-                    cfg.initial.u0,
-                    cfg.initial.v0,
-                    total_h,
-                    cfg.grid.x_max_nm,
-                    cfg.grid.n_x,
-                    cfg.grid.n_t
-                )
+                solver = CNSolver(cfg, temps_K, total_h, civ_model)
+                # solver = CNSolver(
+                #     temps_K,
+                #     cfg.initial.u0,
+                #     cfg.initial.v0,
+                #     total_h,
+                #     cfg.grid.x_max_nm,
+                #     cfg.grid.n_x,
+                #     cfg.grid.n_t
+                # )
 
             # simulate
             U_record = solver.get_oxygen_profile()
@@ -95,19 +101,19 @@ def run_simulation(cfg, sim_const_temp: bool = False):
             report.plot_suppression_factor_comparison()
 
             # test against Ciovati model
-            test_dir = os.path.join(
-                "test_output",
-                f"bake_{bake_C:.0f}_h_{total_h:.1f}"
-            )
-            test_oxygen_profile(
-                x_grid,
-                total_h,
-                bake_C,
-                o_total,
-                cfg.initial.u0,
-                cfg.initial.v0,
-                output_dir = test_dir
-            )
+            # test_dir = os.path.join(
+            #     "test_output",
+            #     f"bake_{bake_C:.0f}_h_{total_h:.1f}"
+            # )
+            # test_oxygen_profile(
+            #     x_grid,
+            #     total_h,
+            #     bake_C,
+            #     o_total,
+            #     cfg.initial.u0,
+            #     cfg.initial.v0,
+            #     output_dir = test_dir
+            # )
 
             print(
                 f"Done: bake={bake_C:.0f}°C, total_time={total_h:.1f}h, "

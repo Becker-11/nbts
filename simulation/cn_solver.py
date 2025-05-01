@@ -7,7 +7,7 @@ see also: https://math.stackexchange.com/a/3311598
 
 import numpy as np
 from scipy import sparse
-from simulation.ciovati_model import D, q
+#from simulation.ciovati_model import D, q
 import simulation.dissolution_species
 
 class CNSolver:
@@ -30,31 +30,33 @@ class CNSolver:
         sigma_u (float): Proportionality term for Crank-Nicolson.
     """
 
-    def __init__(self, T, u_0=1e3, v_0=1e1, t_h=48, x_max=500.0, N_x=1001, N_t=4001):
+    def __init__(self, cfg, T, total_h, civ_model):
+        """Initialize the CNSolver with given parameters."""
+        self.q = civ_model.q
+        self.D = civ_model.D
+        self.k = civ_model.k
         self.T = T
-        self.u_0 = u_0
-        self.v_0 = v_0
-        self.t_h = t_h
-        self.x_max = x_max
-        self.N_x = N_x
-        self.N_t = N_t
+        self.u_0 = cfg.initial.u0
+        self.v_0 = cfg.initial.v0
+        self.t_h = total_h
+        self.x_max = cfg.grid.x_max_nm
+        self.N_x = cfg.grid.n_x
+        self.N_t = cfg.grid.n_t
 
         # Constants
         #self.D_u = D(T)  # Diffusion coefficient (in nm^2/s)
         self.D_u = None
 
-        
-        self.c_0 = v_0 + u_0  # Initial concentration
         # TODO: fix initial concentration to use dissolution_species
         #self.c_0 = dissolution_species.c_Nb2O5(0, T, )  # Initial concentration (Nb2O5)
 
         # Spatial and temporal grids
-        self.x_grid = np.linspace(0.0, x_max, N_x, dtype=np.double)
+        self.x_grid = np.linspace(0.0, self.x_max, self.N_x, dtype=np.double)
         self.dx = np.diff(self.x_grid)[0]
 
         self.s_per_h = 60.0 * 60.0
-        self.t_max = t_h * self.s_per_h
-        self.t_grid = np.linspace(0.0, self.t_max, N_t, dtype=np.double)
+        self.t_max = self.t_h * self.s_per_h
+        self.t_grid = np.linspace(0.0, self.t_max, self.N_t, dtype=np.double)
         self.dt = np.diff(self.t_grid)[0]
 
         # # Stability parameter
@@ -81,7 +83,7 @@ class CNSolver:
             The (sparse) matrices A and B.
         """
         # Initialize the diffusion coefficient for time t
-        self.D_u = D(self.T[i])  # Diffusion coefficient (in nm^2/s)
+        self.D_u = self.D(self.T[i])  # Diffusion coefficient (in nm^2/s)
         # Update the stability parameter
         self.r = (self.D_u * self.dt) / (self.dx * self.dx)
         # TODO: check if r is stable for the maximum T[i] for a given recipe
@@ -143,7 +145,8 @@ class CNSolver:
                 U_record[i] = U_initial.toarray()
             else:
                 # Source term (plane source at x = 0)
-                f_vec = sparse.csr_array([q(t, self.T[i]) * (self.dt / self.dx)] + [0] * (self.N_x - 1))
+                print(f"t: {t}, T: {self.T[i]}")
+                f_vec = sparse.csr_array([self.q(t, self.T[i]) * (self.dt / self.dx)] + [0] * (self.N_x - 1))
 
                 # Generate matrices (could be precomputed if D_u is constant)
                 A, B = self.gen_sparse_matrices(i)

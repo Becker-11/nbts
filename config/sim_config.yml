@@ -28,10 +28,12 @@ initial:
 ciovati:
   D:
     D_0: 0.0138     # diffusion prefactor (cm^2 /s)
-    E_A: 111530       # activation energy (eV)(J·mol⁻¹) 
+    E_A: 111530.0       # activation energy (eV)(J·mol⁻¹) 
   k:
-    A: 3.0e9        # reaction prefactor (1/s)
-    E_A: 135000        # activation energy (eV) (J·mol⁻¹) 
+    A: !!float 3.0e9        # reaction prefactor (1/s)
+    E_A: 135000.0        # activation energy (eV) (J·mol⁻¹) 
+  u0: 1000.0    # initial u-parameter (at.%·nm)
+  v0: 10.0      # initial v-parameter (at.%·nm)
   
 output:
   directory: sim_output    # where to save CSVs & plots

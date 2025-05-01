@@ -1,6 +1,6 @@
 import os
 import matplotlib.pyplot as plt
-from simulation.ciovati_model import c as ciovati_c
+#from simulation.ciovati_model import c as ciovati_c
 
 def test_oxygen_profile(x_grid, time, temp, o_total, u0, v0, output_dir='test_output'):
     """

@@ -10,7 +10,7 @@ import numpy as np
 from scipy import sparse
 from scipy.sparse import diags
 import matplotlib.pyplot as plt
-from simulation.ciovati_model import D, k, c, q
+#from simulation.ciovati_model import D, k, c, q
 
 class CNSolver:
     """Crank-Nicolson Solver for 1D Diffusion Problems.
