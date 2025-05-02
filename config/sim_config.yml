@@ -14,6 +14,11 @@ temp_profile:
   exp_b: 0.18               # cooling rate constant (1/h)
   exp_c: 300.0              # asymptotic temp (K)
   tol_K: 1.0                # cooling stop tolerance (K)
+  two_step:
+    t1_C: 75.0       # first‐step peak temp (°C)
+    bake1_h: 4.0    # hold time at t1_C (h)
+    t2_C: 120.0      # second‐step peak temp (°C)
+    bake2_h: 48.0    # hold time at t2_C (h)
 
 grid:
   x_max_nm: 1000.0   # maximum depth (nm)

@@ -4,29 +4,30 @@ import os
 
 from simulation.cn_solver import CNSolver
 from simulation.sim_report import GenSimReport
-from simulation.temp_profile import ThreePhaseProfile, ConstantProfile
+from simulation.temp_profile import TimeDepProfile, TwoStepProfile, ConstantProfile
 from config.sim_config import load_sim_config
 from simulation.ciovati_model import CiovatiModel
 
 from test_sim_heat_treatments import test_oxygen_profile
 
-def run_simulation(cfg, sim_const_temp: bool = False):
+def run_simulation(cfg, profile: str = "time_dep"):
     """
     Run the Nb heat-treatment simulation sweep.
 
     Parameters:
         cfg: Loaded simulation configuration
-        sim_const_temp: If True, use constant temperature profile
+        profile: Which temperature profile to use:
+                 "const", "time_dep", or "two_step"
     """
     # build arrays for sweep
-    times_h    = np.arange(
+    times_h = np.arange(
         cfg.time.start_h,
-        cfg.time.stop_h  + cfg.time.step_h,
+        cfg.time.stop_h + cfg.time.step_h,
         cfg.time.step_h
     )
     bake_C_list = np.arange(
         cfg.temperature.start_C,
-        cfg.temperature.stop_C  + cfg.temperature.step_C,
+        cfg.temperature.stop_C + cfg.temperature.step_C,
         cfg.temperature.step_C
     )
 
@@ -34,26 +35,41 @@ def run_simulation(cfg, sim_const_temp: bool = False):
     start_K = cfg.temp_profile.start_C + 273.15
     x_grid  = np.linspace(0, cfg.grid.x_max_nm, cfg.grid.n_x)
 
-    # initialize ciovati model
+    # initialize Ciovati model
     civ_model = CiovatiModel(cfg.ciovati)
+
+    # select profile class and output suffix
+    match profile:
+        case "const":
+            ProfileClass = ConstantProfile
+            suffix = "_const_temp"
+        case "time_dep":
+            ProfileClass = TimeDepProfile
+            suffix = ""
+        case "two_step":
+            ProfileClass = TwoStepProfile
+            suffix = "_two_step"
+        case _:
+            raise ValueError(f"Unknown profile: {profile!r}")
+
+    base_output = cfg.output.directory
 
     for bake_C in bake_C_list:
         bake_K = bake_C + 273.15
 
         for total_h in times_h:
-            output_dir = cfg.output.directory
-            if sim_const_temp:
-                profile = ConstantProfile(cfg, start_K, bake_K, total_h)
-                time_h, temps_K, t_hold = profile.generate()
-                solver = CNSolver(cfg, temps_K, total_h, civ_model)
-                output_dir = f"{output_dir}_const_temp"
-            else:
-                profile = ThreePhaseProfile(cfg, start_K, bake_K, total_h)
-                time_h, temps_K, t_hold = profile.generate()
-                solver = CNSolver(cfg, temps_K, total_h, civ_model)
+            # set output directory based on profile
+            output_dir = f"{base_output}{suffix}"
+
+            # instantiate and run profile
+            profile_obj = ProfileClass(cfg, start_K, bake_K, total_h)
+            time_h, temps_K, t_hold = profile_obj.generate()
+
+            solver = CNSolver(cfg, temps_K, total_h, civ_model)
             U_record = solver.get_oxygen_profile()
             o_total   = U_record[-1]
 
+            # generate reports
             report = GenSimReport(
                 x_grid,
                 o_total,
@@ -65,19 +81,27 @@ def run_simulation(cfg, sim_const_temp: bool = False):
             report.plot_suppression_factor()
             report.plot_suppression_factor_comparison()
 
-            # test against Ciovati model
+            # run Ciovati model comparison
             test_dir = os.path.join(
                 "test_output",
                 f"bake_{bake_C:.0f}_h_{total_h:.1f}"
             )
-            test_oxygen_profile(cfg, x_grid, total_h, bake_K, o_total, output_dir=test_dir)
+            test_oxygen_profile(
+                cfg,
+                x_grid,
+                total_h,
+                bake_K,
+                o_total,
+                output_dir=test_dir
+            )
 
             print(
                 f"Done: bake={bake_C:.0f}°C, total_time={total_h:.1f}h, "
-                f"stability={solver.stability}, const_temp={sim_const_temp}"
+                f"stability={solver.stability}, profile={profile}"
             )
 
     print("All sims complete.")
+
 
 
 def main():
@@ -97,10 +121,16 @@ def main():
         help="Config file name or full path; default: sim_config.yml"
     )
     parser.add_argument(
-        "--const",
-        dest="sim_const_temp",
-        action="store_true",
-        help="Use constant temperature profile"
+        "-p", "--profile",
+        dest="profile",
+        choices=["const", "time_dep", "two_step"],
+        default="time_dep",
+        help=(
+            "Temperature profile to use: "
+            "`const` (constant), "
+            "`time_dep` (time-dependent ramp→hold→cool), "
+            "or `two_step`"
+        )
     )
     args = parser.parse_args()
 
@@ -113,11 +143,12 @@ def main():
     else:
         config_path = os.path.join("config", config_name)
 
-    # load and run
+    # load config
     cfg = load_sim_config(config_path)
-    run_simulation(cfg, sim_const_temp=args.sim_const_temp)
+
+    # dispatch to runner with chosen profile
+    run_simulation(cfg, profile=args.profile)
 
 
 if __name__ == "__main__":
     main()
-

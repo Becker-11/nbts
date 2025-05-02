@@ -1,4 +1,5 @@
-/analysis/
+/sim_output/
+/sim_output_*/
 /test_output/
 /experiments/
 

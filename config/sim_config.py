@@ -1,6 +1,7 @@
 import yaml
 import numpy as np
 from dataclasses import dataclass
+from typing import Optional
 
 @dataclass
 class TimeConfig:
@@ -15,12 +16,20 @@ class TemperatureConfig:
     step_C:  float
 
 @dataclass
+class TwoStepConfig:
+    t1_C:    float   # first‐step peak temp (°C)
+    bake1_h: float   # hold time at t1_C (h)
+    t2_C:    float   # second‐step peak temp (°C)
+    bake2_h: float   # hold time at t2_C (h)
+
+@dataclass
 class ProfileConfig:
     start_C:               float
     ramp_rate_C_per_min:   float
     exp_b:                 float
     exp_c:                 float
     tol_K:                 float
+    two_step:              Optional[TwoStepConfig] = None
 
 @dataclass
 class GridConfig:
@@ -86,14 +95,26 @@ def load_sim_config(path: str) -> SimConfig:
         step_C  = tmp['step_C'],
     )
 
-    # 3) Profile
+    # 3) Profile (including optional two_step)
     pp = raw['temp_profile']
+    # parse two_step if present
+    ts_raw = pp.get('two_step')
+    two_step_cfg = None
+    if ts_raw is not None:
+        two_step_cfg = TwoStepConfig(
+            t1_C    = ts_raw['t1_C'],
+            bake1_h = ts_raw['bake1_h'],
+            t2_C    = ts_raw['t2_C'],
+            bake2_h = ts_raw['bake2_h'],
+        )
+
     profile_cfg = ProfileConfig(
         start_C             = pp['start_C'],
         ramp_rate_C_per_min = pp['ramp_rate_C_per_min'],
         exp_b               = pp['exp_b'],
         exp_c               = pp['exp_c'],
         tol_K               = pp['tol_K'],
+        two_step            = two_step_cfg
     )
 
     # 4) Grid
@@ -121,9 +142,9 @@ def load_sim_config(path: str) -> SimConfig:
         E_A_D = D['E_A'],
         k_A   = k['A'],
         E_A_k = k['E_A'],
-        u_0  = civ['u0'],
-        v_0  = civ['v0'],
-        c_0 = civ['c0'] 
+        u_0   = civ['u0'],
+        v_0   = civ['v0'],
+        c_0   = civ['c0']
     )
 
     # 7) Output

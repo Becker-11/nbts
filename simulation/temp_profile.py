@@ -84,7 +84,7 @@ class ConstantProfile(BaseTempProfile):
         return time_h, temps_K, t_hold_h
 
 
-class ThreePhaseProfile(BaseTempProfile):
+class TimeDepProfile(BaseTempProfile):
     """
     Generate a three-phase bake temperature profile in Kelvin, driven by config.
 
@@ -166,40 +166,130 @@ class ThreePhaseProfile(BaseTempProfile):
         # convert minutes -> hours for the x-axis
         time_h     = t / 60.0
         return time_h, temps_K, t_hold
+    
+
+
+class TwoStepProfile(BaseTempProfile):
+    """
+    Two‐step bake profile:
+    1. Ramp   from start_K → t1_K
+    2. Hold   at t1_K for bake1_h hours
+    3. Ramp   from t1_K → t2_K
+    4. Hold   at t2_K for bake2_h hours
+    5. Cool   exponentially toward exp_c
+    """
+    def generate(self):
+        # Unpack shared config
+        ramp_rate = self.cfg.temp_profile.ramp_rate_C_per_min  # K/min
+        exp_b     = self.cfg.temp_profile.exp_b                # 1/h
+        exp_c     = self.cfg.temp_profile.exp_c                # asymptote K
+        tol_K     = self.cfg.temp_profile.tol_K                # tolerance K
+
+        # Unpack two‐step params
+        ts       = self.cfg.temp_profile.two_step
+        t1_K     = ts.t1_C    + 273.15  # first‐step peak
+        bake1_h  = ts.bake1_h           # hold time at t1_K (h)
+        t2_K     = ts.t2_C    + 273.15  # second‐step peak
+        bake2_h  = ts.bake2_h           # hold time at t2_K (h)
+
+        # dynamic amplitude for final cooldown
+        a_dyn = t2_K - exp_c
+        if a_dyn <= 0:
+            raise ValueError(f"T2 ({t2_K}) must exceed exp_c ({exp_c})")
+
+        # convert cooling rate to per‐minute
+        b_per_min = exp_b / 60.0
+
+        # compute durations (minutes)
+        t_ramp1 = (t1_K - self.start_K) / ramp_rate
+        t_hold1 = bake1_h * 60.0
+        t_ramp2 = (t2_K - t1_K) / ramp_rate
+        t_hold2 = bake2_h * 60.0
+        t_cool  = (1.0 / b_per_min) * np.log(a_dyn / tol_K)
+        total_min = t_ramp1 + t_hold1 + t_ramp2 + t_hold2 + t_cool
+
+        # uniform time grid in minutes
+        t = np.linspace(0.0, total_min, self.n_t)
+
+        # piecewise definition
+        temps_K = np.piecewise(
+            t,
+            [
+                t <= t_ramp1,
+                (t > t_ramp1) &
+                (t <= t_ramp1 + t_hold1),
+                (t > t_ramp1 + t_hold1) &
+                (t <= t_ramp1 + t_hold1 + t_ramp2),
+                (t > t_ramp1 + t_hold1 + t_ramp2) &
+                (t <= t_ramp1 + t_hold1 + t_ramp2 + t_hold2),
+                t > t_ramp1 + t_hold1 + t_ramp2 + t_hold2
+            ],
+            [
+                # 1) ramp up to T1
+                lambda τ: self.start_K + ramp_rate * τ,
+                # 2) hold at T1
+                lambda τ: t1_K,
+                # 3) ramp up to T2
+                lambda τ: t1_K + ramp_rate * (τ - t_ramp1 - t_hold1),
+                # 4) hold at T2
+                lambda τ: t2_K,
+                # 5) exponential cooldown
+                lambda τ: a_dyn * np.exp(
+                    -b_per_min * (τ - t_ramp1 - t_hold1 - t_ramp2 - t_hold2)
+                ) + exp_c
+            ]
+        )
+
+        # convert minutes → hours for the x‐axis
+        time_h = t / 60.0
+        # return exactly like ThreePhaseProfile: holds combined in minutes
+        t_hold_total = t_hold1 + t_hold2
+        return time_h, temps_K, t_hold_total
+
 
 
 def main():
-    """Quick visual sanity-check of both profiles."""
+    """Quick visual sanity-check of constant, three-phase, and two-step profiles."""
     # dummy config stub
     cfg = SimpleNamespace(
         temp_profile=SimpleNamespace(
-            ramp_rate_C_per_min=2.0,  # 2 K/min
-            exp_b=0.18,               # 0.18 1/h
-            exp_c=300.0,              # 300 K asymptote
-            tol_K=1.0                 # stop when within 1 K
+            ramp_rate_C_per_min=2.0,   # 2 K/min
+            exp_b=0.18,                # 0.18 1/h
+            exp_c=300.0,               # 300 K asymptote
+            tol_K=1.0,                 # stop when within 1 K
+            two_step=SimpleNamespace(
+                t1_C=80.0,    # first-step peak temp (°C)
+                bake1_h=24.0, # hold at t1 for 24 h
+                t2_C=120.0,   # second-step peak temp (°C)
+                bake2_h=48.0  # hold at t2 for 48 h
+            )
         ),
         grid=SimpleNamespace(
-            n_t=2001                  # 2001 points
+            n_t=2001                  # 2001 time points
         )
     )
 
-    # example parameters (°C -> K)
+    # example parameters (°C → K)
     start_C, bake_C, total_h = 20.0, 120.0, 48.0
     start_K = start_C + 273.15
     bake_K  = bake_C  + 273.15
 
-    # instantiate both profiles
-    three = ThreePhaseProfile(cfg, start_K, bake_K, total_h)
+    # instantiate profiles
+    three = TimeDepProfile(cfg, start_K, bake_K, total_h)
     const = ConstantProfile(cfg, start_K, bake_K, total_h)
+    two   = TwoStepProfile(   cfg, start_K, bake_K, total_h)
 
     # generate
-    t3, T3, _ = three.generate()
-    tc, Tc, _ = const.generate()
+    t3, T3, _   = three.generate()
+    tc, Tc, _   = const.generate()
+    t2s, T2s, _ = two.generate()
 
-    # plot
+    # plot them all
     fig, ax = plt.subplots(figsize=(8,4))
-    ax.plot(t3, T3, label='Three-Phase Ramp->Hold->Cool')
-    ax.plot(tc, Tc, '--', label='Constant @ Bake Temp')
+    ax.plot(t3,  T3,  label='Three-Phase Ramp→Hold→Cool')
+    ax.plot(tc,  Tc,  '--', label='Constant @ Bake Temp')
+    ax.plot(t2s, T2s, '-.', label='Two-Step Ramp→Hold1→Ramp→Hold2→Cool')
+
     ax.set_xlabel('Time (h)')
     ax.set_ylabel('Temperature (K)')
     ax2 = ax.secondary_yaxis(
@@ -207,6 +297,7 @@ def main():
         functions=(lambda x: x - 273.15, lambda x: x + 273.15)
     )
     ax2.set_ylabel('Temperature (°C)')
+
     ax.legend(loc='best')
     plt.title('Temperature Profile Examples')
     plt.tight_layout()
