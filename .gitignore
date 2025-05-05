@@ -2,6 +2,7 @@
 /sim_output_*/
 /test_output/
 /experiments/
+/experiments_*/
 
 .DS_Store
 
