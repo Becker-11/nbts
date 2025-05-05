@@ -4,8 +4,8 @@ time:
   step_h: 1          # time step (h)
 
 temperature:
-  start_C: 121.0      # start temp (°C)
-  stop_C: 121.0      # stop temp (°C)
+  start_C: 122.0      # start temp (°C)
+  stop_C: 122.0      # stop temp (°C)
   step_C: 1.0        # temp step (°C)
 
 temp_profile:

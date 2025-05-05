@@ -30,7 +30,7 @@ class CNSolver:
         sigma_u (float): Proportionality term for Crank-Nicolson.
     """
 
-    def __init__(self, cfg, temps_K, total_h, civ_model):
+    def __init__(self, cfg, temps_K, total_h, civ_model, U_initial=None):
         """Initialize the CNSolver with given parameters."""
         self.q = civ_model.q
         self.D = civ_model.D
@@ -55,6 +55,13 @@ class CNSolver:
         self.t_max = self.t_h * self.s_per_h
         self.t_grid = np.linspace(0.0, self.t_max, self.N_t, dtype=np.double)
         self.dt = np.diff(self.t_grid)[0]
+
+        # Initial concentration
+        if U_initial is None:
+            self.U_initial = sparse.csr_array([self.v_0 / self.dx] + [0] * (self.N_x - 1))
+        else:
+            U_initial[0] += self.v_0 / self.dx
+            self.U_initial = sparse.csr_array(U_initial)
 
         # Constants
         self.D_u = None
@@ -127,13 +134,13 @@ class CNSolver:
             np.ndarray: The solution record (time x space).
         """
         # Initial condition: Concentration is all in the first spatial bin
-        U_initial = sparse.csr_array([self.v_0 / self.dx] + [0] * (self.N_x - 1))
+        #U_initial = sparse.csr_array([self.v_0 / self.dx] + [0] * (self.N_x - 1))
         U_record = np.zeros((self.N_t, self.N_x), dtype=np.double)
 
         for i, t in enumerate(self.t_grid):
             if i == 0:
                 # Record the initial condition
-                U_record[i] = U_initial.toarray()
+                U_record[i] = self.U_initial.toarray()
             else:
                 # Source term (plane source at x = 0)
                 f_vec = sparse.csr_array([self.q(t, self.T[i]) * (self.dt / self.dx)] + [0] * (self.N_x - 1))

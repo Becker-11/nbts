@@ -10,7 +10,7 @@ from simulation.ciovati_model import CiovatiModel
 
 from test_sim_heat_treatments import test_oxygen_profile
 
-def run_simulation(cfg, profile: str = "time_dep"):
+def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
     """
     Run the Nb heat-treatment simulation sweep.
 
@@ -67,6 +67,9 @@ def run_simulation(cfg, profile: str = "time_dep"):
 
             solver = CNSolver(cfg, temps_K, total_h, civ_model)
             U_record = solver.get_oxygen_profile()
+            if reoxidize:
+                solver = CNSolver(cfg, temps_K, total_h, civ_model, U_initial=U_record[-1])
+                U_record = solver.get_oxygen_profile()
             o_total   = U_record[-1]
 
             # generate reports
@@ -105,20 +108,37 @@ def run_simulation(cfg, profile: str = "time_dep"):
 
 
 def main():
+
+    """
+        Run Nb heat-treatment simulation sweep from a config YAML.
+
+        Usage:
+            sim [-c CONFIG] [-p PROFILE] [CONFIG_FILE]
+            sim reoxidize [-c CONFIG] [-p PROFILE] [CONFIG_FILE]
+
+        Positional arguments:
+            CONFIG_FILE            Config file name or full path (default: sim_config.yml)
+
+        Optional arguments:
+            -h, --help             show this help message and exit
+            -c CONFIG, --config CONFIG
+                                Config file name or full path; overrides positional
+            -p PROFILE, --profile PROFILE
+                                Temperature profile to use: const, time_dep, or two_step
+
+        Sub-commands:
+            reoxidize              Run in reoxidation mode (sets reoxidize=True)
+    """
+    
     parser = argparse.ArgumentParser(
         description="Run Nb heat-treatment simulation sweep from a config YAML."
     )
+    # these apply to both commands:
     parser.add_argument(
         "-c", "--config",
         dest="config",
         metavar="CONFIG",
         help="Config file name or full path; overrides positional"
-    )
-    parser.add_argument(
-        "pos_config",
-        nargs="?",
-        metavar="CONFIG",
-        help="Config file name or full path; default: sim_config.yml"
     )
     parser.add_argument(
         "-p", "--profile",
@@ -127,14 +147,24 @@ def main():
         default="time_dep",
         help=(
             "Temperature profile to use: "
-            "`const` (constant), "
-            "`time_dep` (time-dependent ramp→hold→cool), "
-            "or `two_step`"
+            "`const`, `time_dep`, or `two_step`"
         )
     )
+    parser.add_argument(
+        "pos_config",
+        nargs="?",
+        metavar="CONFIG",
+        help="Positional config file; default: sim_config.yml"
+    )
+
+    # sub-commands: only one extra for now
+    subparsers = parser.add_subparsers(dest="command")
+    subparsers.add_parser("reoxidize",
+                          help="Run in reoxidation mode (sets reoxidize=True)")
+
     args = parser.parse_args()
 
-    # determine config path
+    # figure out config path exactly as before
     config_name = args.config or args.pos_config or "sim_config.yml"
     if not os.path.splitext(config_name)[1]:
         config_name += ".yml"
@@ -143,12 +173,19 @@ def main():
     else:
         config_path = os.path.join("config", config_name)
 
-    # load config
+    # load
     cfg = load_sim_config(config_path)
 
-    # dispatch to runner with chosen profile
-    run_simulation(cfg, profile=args.profile)
+    # detect reoxidize
+    reoxidize = (args.command == "reoxidize")
 
+    # dispatch
+    run_simulation(
+        cfg,
+        profile=args.profile,
+        reoxidize=reoxidize
+    )
 
 if __name__ == "__main__":
     main()
+
