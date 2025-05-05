@@ -26,8 +26,7 @@ class TwoStepConfig:
 class ProfileConfig:
     start_C:               float
     ramp_rate_C_per_min:   float
-    exp_b:                 float
-    exp_c:                 float
+    cooling_time_h:        float
     tol_K:                 float
     two_step:              Optional[TwoStepConfig] = None
 
@@ -111,8 +110,7 @@ def load_sim_config(path: str) -> SimConfig:
     profile_cfg = ProfileConfig(
         start_C             = pp['start_C'],
         ramp_rate_C_per_min = pp['ramp_rate_C_per_min'],
-        exp_b               = pp['exp_b'],
-        exp_c               = pp['exp_c'],
+        cooling_time_h      = pp['cooling_time_h'],
         tol_K               = pp['tol_K'],
         two_step            = two_step_cfg
     )
