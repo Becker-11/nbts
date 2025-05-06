@@ -15,8 +15,9 @@ class GenSimReport:
         fig = report.plot_overview()
     """
 
-    def __init__(self, x, o_total, t, T, output_dir="sim_output"):
+    def __init__(self, cfg, x, o_total, t, T, output_dir="sim_output"):
         # raw inputs
+        self.cfg = cfg
         self.x = np.asarray(x)
         self.o_total = np.asarray(o_total)
         self.t = t
@@ -47,7 +48,7 @@ class GenSimReport:
         # mean-free-path and penetration depths
         self.ell_val = ell(self.o_total)
         self.lambda_eff_val = lambda_eff(self.ell_val)
-        self.lambda_eff_val_corr = lambda_eff_corr(self.lambda_eff_val)
+        self.lambda_eff_val_corr = lambda_eff_corr(self.cfg, self.lambda_eff_val)
 
         # GLE solver for screening & current density
         gle = GLESolver(self.x, self.lambda_eff_val)

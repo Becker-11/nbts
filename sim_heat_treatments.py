@@ -74,6 +74,7 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
 
             # generate reports
             report = GenSimReport(
+                cfg,
                 x_grid,
                 o_total,
                 total_h,

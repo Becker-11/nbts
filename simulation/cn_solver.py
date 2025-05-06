@@ -64,9 +64,10 @@ class CNSolver:
             self.U_initial = sparse.csr_array(U_initial)
 
         # Constants
-        self.D_u = None
-        self.r = None
-        self.stability = None
+        self.D_u_max = self.D(max(self.T))  # Maximum diffusion coefficient (in nm^2/s)
+        self.r = (self.D_u_max * self.dt) / (self.dx * self.dx)
+        self.stability = "STABLE" if self.r <= 0.5 else "POTENTIAL OSCILLATIONS"
+
         self.sigma = None
 
 
@@ -84,9 +85,7 @@ class CNSolver:
         self.D_u = self.D(self.T[i])  # Diffusion coefficient (in nm^2/s)
         # Update the stability parameter
         self.r = (self.D_u * self.dt) / (self.dx * self.dx)
-        # TODO: check if r is stable for the maximum T[i] for a given recipe
-        # ...   I think right now it is only showing the last T[i] which will be for a low temperature
-        self.stability = "STABLE" if self.r <= 0.5 else "POTENTIAL OSCILLATIONS"
+
         # Crank-Nicolson proportionality term
         self.sigma = 0.5 * self.r
 

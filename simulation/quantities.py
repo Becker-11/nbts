@@ -168,6 +168,7 @@ def chi(a_imp, n_max=2000) -> float:
 
 
 def kappa(
+    cfg,
     lambda_eff: float,
     lambda_L: float = 27.0,
     xi_0: float = 33.0,
@@ -199,13 +200,15 @@ def kappa(
 
     kappa_clean = 0.957 * lambda_L_nm / xi_0_nm
     a_imp       = 0.882 * xi_0_nm / lambda_eff
-    chi_a_imp   = chi(a_imp)
+    n_max      = cfg.grid.n_x - 1
+    chi_a_imp   = chi(a_imp, n_max)
 
     return kappa_clean / chi_a_imp
 
 
 
 def lambda_eff_corr(
+    cfg,
     lambda_eff: float,
     B_c: float = 200.0,
 ) -> float:
@@ -222,7 +225,7 @@ def lambda_eff_corr(
         field‐corrected λ_corr (nm)
     """
     B_0 = B(0, 100, lambda_eff)
-    kappa_val = kappa(lambda_eff)
+    kappa_val = kappa(cfg, lambda_eff)
     correction = (
         1.0
         + (kappa_val * (kappa_val + 2**1.5) * B_0**2)
