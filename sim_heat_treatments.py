@@ -157,14 +157,14 @@ def main():
         help="Positional config file; default: sim_config.yml"
     )
 
-    # sub-commands: only one extra for now
+    # sub-commands: 
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("reoxidize",
                           help="Run in reoxidation mode (sets reoxidize=True)")
 
     args = parser.parse_args()
 
-    # figure out config path exactly as before
+    # figure out config path 
     config_name = args.config or args.pos_config or "sim_config.yml"
     if not os.path.splitext(config_name)[1]:
         config_name += ".yml"

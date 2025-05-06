@@ -242,6 +242,69 @@ class TwoStepProfile(BaseTempProfile):
 
 
 
+class RampHoldProfile(BaseTempProfile):
+    """
+    Generate a two-phase bake temperature profile (no cooling) in Kelvin, driven by config.
+
+    Phases:
+      1. HEATING: linear ramp from start_K to bake_K at ramp_rate (K/min).
+      2. HOLD: constant at bake_K for total_h hours.
+
+    Parameters
+    ----------
+    cfg : SimConfig-like object
+        Must have attributes:
+          cfg.temp_profile.ramp_rate_C_per_min  Ramp rate in K/min
+          cfg.grid.n_t                          Number of time steps
+    start_K : float
+        Starting temperature in Kelvin.
+    bake_K : float
+        Peak (bake) temperature in Kelvin.
+    total_h : float
+        Duration to hold at bake_K, in hours.
+
+    Returns
+    -------
+    time_h : np.ndarray, shape (n_t,)
+        Time axis in hours.
+    temps_K : np.ndarray, shape (n_t,)
+        Temperature profile in Kelvin.
+    t_hold_hrs : float
+        Hold time in hours.
+    """
+
+    def generate(self):
+        # Unpack config
+        ramp_rate = self.cfg.temp_profile.ramp_rate_C_per_min  # K/min
+        n_t       = self.n_t                                   # number of time steps
+
+        # Compute durations in minutes
+        t_heat = (self.bake_K - self.start_K) / ramp_rate
+        t_hold = self.total_h * 60.0
+        total_min = t_heat + t_hold
+
+        # Build uniform time grid in minutes
+        t = np.linspace(0.0, total_min, n_t)
+
+        # Piecewise definition with explicit 'tau'
+        temps_K = np.piecewise(
+            t,
+            [t <= t_heat, t > t_heat],
+            [
+                # 1) HEATING
+                lambda tau: self.start_K + ramp_rate * tau,
+                # 2) HOLD
+                lambda tau: self.bake_K
+            ]
+        )
+
+        # Convert minutes -> hours
+        time_h = t / 60.0
+        return time_h, temps_K, t_hold / 60.0  # t_hold in hours
+
+
+
+
 def main():
     """Quick visual sanity-check of constant, three-phase, and two-step profiles."""
     # dummy config stub
@@ -268,17 +331,21 @@ def main():
     bake_K  = bake_C  + 273.15
 
     # instantiate profiles
-    three = TimeDepProfile(cfg, start_K, bake_K, total_h)
+    time_dep = TimeDepProfile(cfg, start_K, bake_K, total_h)
     const = ConstantProfile(cfg, start_K, bake_K, total_h)
     two   = TwoStepProfile(   cfg, start_K, bake_K, total_h)
+    ramp_hold = RampHoldProfile(cfg, start_K, bake_K, total_h)
+
 
     # generate
-    t3, T3, _   = three.generate()
+    t3, T3, _   = time_dep.generate()
     tc, Tc, _   = const.generate()
     t2s, T2s, _ = two.generate()
+    t_rh, T_rh, _ = ramp_hold.generate()
 
     # plot them all
     fig, ax = plt.subplots(figsize=(8,4))
+    ax.plot(t_rh, T_rh, label='Ramp→Hold')
     ax.plot(t3,  T3,  label='Three-Phase Ramp→Hold→Cool')
     ax.plot(tc,  Tc,  '--', label='Constant @ Bake Temp')
     ax.plot(t2s, T2s, '-.', label='Two-Step Ramp→Hold1→Ramp→Hold2→Cool')
