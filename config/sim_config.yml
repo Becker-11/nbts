@@ -1,11 +1,11 @@
 time:
-  start_h: 100         # start time (h)
-  stop_h: 100         # stop time (h)
+  start_h: 48         # start time (h)
+  stop_h: 48         # stop time (h)
   step_h: 1          # time step (h)
 
 temperature:
-  start_C: 200.0      # start temp (°C)
-  stop_C: 200.0      # stop temp (°C)
+  start_C: 125.0      # start temp (°C)
+  stop_C: 125.0      # stop temp (°C)
   step_C: 1.0        # temp step (°C)
 
 temp_profile:
@@ -21,8 +21,8 @@ temp_profile:
 
 grid:
   x_max_nm: 1000.0   # maximum depth (nm)
-  n_x: 4001          # spatial grid points
-  n_t: 8001          # time grid points
+  n_x: 2001          # spatial grid points
+  n_t: 3001          # time grid points
 
 initial:
   u0: 1000.0    # initial u-parameter (at.%·nm)

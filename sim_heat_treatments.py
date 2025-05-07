@@ -1,6 +1,7 @@
 import numpy as np
 import argparse
 import os
+import time
 
 from simulation.cn_solver import CNSolver
 from simulation.sim_report import GenSimReport
@@ -57,18 +58,20 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
     for bake_C in bake_C_list:
         bake_K = bake_C + 273.15
 
-        for total_h in times_h:
+        for t_h in times_h:
+            start = time.perf_counter()
+
             # set output directory based on profile
             output_dir = f"{base_output}{suffix}"
 
             # instantiate and run profile
-            profile_obj = ProfileClass(cfg, start_K, bake_K, total_h)
-            time_h, temps_K, t_hold = profile_obj.generate()
+            # TODO: fix t_hold to total_hours and use in CNsolver
+            time_h, temps_K, total_hours = ProfileClass(cfg, start_K, bake_K, t_h).generate()
 
-            solver = CNSolver(cfg, temps_K, total_h, civ_model)
+            solver = CNSolver(cfg, temps_K, total_hours, civ_model)
             U_record = solver.get_oxygen_profile()
             if reoxidize:
-                solver = CNSolver(cfg, temps_K, total_h, civ_model, U_initial=U_record[-1])
+                solver = CNSolver(cfg, temps_K, total_hours, civ_model, U_initial=U_record[-1])
                 U_record = solver.get_oxygen_profile()
             o_total   = U_record[-1]
 
@@ -77,7 +80,7 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
                 cfg,
                 x_grid,
                 o_total,
-                total_h,
+                total_hours,
                 bake_K,
                 output_dir
             )
@@ -88,23 +91,27 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
             # run Ciovati model comparison
             test_dir = os.path.join(
                 "test_output",
-                f"bake_{bake_C:.0f}_h_{total_h:.1f}"
+                f"bake_{bake_C:.0f}_h_{total_hours:.1f}"
             )
             test_oxygen_profile(
                 cfg,
                 x_grid,
-                total_h,
+                total_hours,
                 bake_K,
                 o_total,
                 output_dir=test_dir
             )
+            end = time.perf_counter()
 
             print(
-                f"Done: bake={bake_C:.0f}°C, total_time={total_h:.1f}h, "
-                f"stability={solver.stability}, profile={profile}"
+                f"Done: bake={bake_C:.0f}°C, total_time={total_hours:.1f}h, "
+                f"profile={profile}, "
+                f"Completed in {end - start:.2f}s"
             )
 
-    print("All sims complete.")
+            #print(f"stability={solver.stability} r={solver.r}")
+
+    print(f"All sims complete. Plots and Data can be found in: {output_dir}")
 
 
 

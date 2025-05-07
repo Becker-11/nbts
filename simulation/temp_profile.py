@@ -65,8 +65,8 @@ class BaseTempProfile(ABC):
             Time axis, in hours.
         temps_K : np.ndarray, shape (n_t,)
             Temperature at each time point, in K.
-        t_hold_min : float
-            Hold-time in minutes (bake phase).
+        total_hours : float
+            Total hours (bake phase).
         """
         ...
 
@@ -114,8 +114,8 @@ class TimeDepProfile(BaseTempProfile):
         Time axis in hours.
     temps_K : np.ndarray, shape (n_t,)
         Temperature profile in Kelvin.
-    t_hold_hrs : float
-        Hold time in hours.
+    total_hrs : float
+        total time in hours.
     """
 
     def generate(self):
@@ -163,7 +163,7 @@ class TimeDepProfile(BaseTempProfile):
 
         # Convert minutes to hours
         time_h = t / 60.0
-        return time_h, temps_K, t_hold / 60.0
+        return time_h, temps_K, total_min / 60.0
 
     
 
@@ -300,7 +300,7 @@ class RampHoldProfile(BaseTempProfile):
 
         # Convert minutes -> hours
         time_h = t / 60.0
-        return time_h, temps_K, t_hold / 60.0  # t_hold in hours
+        return time_h, temps_K, total_min / 60.0  # t_hold in hours
 
 
 
