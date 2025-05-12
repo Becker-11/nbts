@@ -1,6 +1,6 @@
 time:
-  start_h: 48         # start time (h)
-  stop_h: 48         # stop time (h)
+  start_h: 24         # start time (h)
+  stop_h: 24         # stop time (h)
   step_h: 1          # time step (h)
 
 temperature:
@@ -11,7 +11,7 @@ temperature:
 temp_profile:
   start_C: 25.0             # initial temp for profile (°C)
   ramp_rate_C_per_min: 1.0  # ramp rate (°C/min)
-  cooling_time_h: 1.0       # cooling time (h)
+  cooling_time_h: 3.0       # cooling time (h)
   tol_K: 1.0                # cooling stop tolerance (K)
   two_step:
     t1_C: 75.0       # first‐step peak temp (°C)
@@ -20,9 +20,9 @@ temp_profile:
     bake2_h: 48.0    # hold time at t2_C (h)
 
 grid:
-  x_max_nm: 3000.0   # maximum depth (nm)
-  n_x: 3001          # spatial grid points
-  n_t: 6001          # time grid points
+  x_max_nm: 1000.0   # maximum depth (nm)
+  n_x: 2001          # spatial grid points
+  n_t: 3001          # time grid points
 
 initial:
   u0: 1000 #189.5    # initial total oxygen per unit area from Nb205 (at.%·nm)

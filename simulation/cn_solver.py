@@ -56,7 +56,7 @@ class CNSolver:
 
         # Initial concentration
         if U_initial is None:
-            self.U_initial = sparse.csr_array([self.v_0 / self.dx] + [0] * (self.N_x - 1))
+            self.U_initial = sparse.csr_array([self.v_0 / self.dx] + [self.base_O / self.dx] * (self.N_x - 1))
         else:
             U_initial[0] += self.v_0 / self.dx
             self.U_initial = sparse.csr_array(U_initial)

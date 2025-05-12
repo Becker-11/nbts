@@ -238,7 +238,7 @@ class TwoStepProfile(BaseTempProfile):
         time_h = t / 60.0
         # return holds combined in minutes
         t_hold_total = t_hold1 + t_hold2
-        return time_h, temps_K, t_hold_total
+        return time_h, temps_K, total_min / 60.0
 
 
 

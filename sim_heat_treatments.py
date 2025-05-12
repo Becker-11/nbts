@@ -58,16 +58,16 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
     for bake_C in bake_C_list:
         bake_K = bake_C + 273.15
 
-        for t_h in times_h:
+        for time_hold in times_h:
             start = time.perf_counter()
 
             # set output directory based on profile
             output_dir = f"{base_output}{suffix}"
 
             # instantiate and run profile
-            time_h, temps_K, total_hours = ProfileClass(cfg, start_K, bake_K, t_h).generate()
+            time_h, temps_K, total_hours = ProfileClass(cfg, start_K, bake_K, time_hold).generate()
 
-            print(f"Running {profile} profile @ {bake_C}°C, hold time: {t_h:.2f}h, total time: {total_hours:.2f}h")
+            print(f"Running {profile} profile @ {bake_C}°C, hold time: {time_hold:.2f}h, total time: {total_hours:.2f}h")
             solver = CNSolver(cfg, temps_K, total_hours, civ_model)
             U_record = solver.get_oxygen_profile()
             if reoxidize:
@@ -80,7 +80,7 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
                 cfg,
                 x_grid,
                 o_total,
-                t_h,
+                time_hold,
                 bake_K,
                 output_dir
             )
@@ -91,12 +91,12 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
             # run Ciovati model comparison
             test_dir = os.path.join(
                 "test_output",
-                f"bake_{bake_C:.0f}_h_{t_h:.1f}"
+                f"bake_{bake_C:.0f}_h_{time_hold:.1f}"
             )
             test_oxygen_profile(
                 cfg,
                 x_grid,
-                t_h,
+                time_hold,
                 bake_K,
                 o_total,
                 output_dir=test_dir
@@ -104,7 +104,7 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
             end = time.perf_counter()
 
             print(
-                f"Done: {profile} profile @ {bake_C:.0f}°C, hold time: {t_h:.2f}h, total_time={total_hours:.1f}h, "
+                f"Done: {profile} profile @ {bake_C:.0f}°C, hold time: {time_hold:.2f}h, total_time={total_hours:.1f}h, "
                 f"Completed in {end - start:.2f}s"
             )
 
