@@ -49,7 +49,7 @@ def ell(
 def lambda_eff(
     ell: float,
     lambda_L: float = 27.0,
-    xi_0: float = 38.5,
+    xi_0: float = 33,
 ) -> float:
     r"""Effective magnetic penetration depth.
 
@@ -210,7 +210,7 @@ def kappa(
 def lambda_eff_corr(
     cfg,
     lambda_eff: float,
-    B_c: float = 200.0,
+    B_c: float = 199.3,
 ) -> float:
     r"""Corrected London penetration depth for an impure superconductor.
         Taking into acount the non-linear meissner effect

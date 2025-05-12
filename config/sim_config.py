@@ -40,6 +40,7 @@ class GridConfig:
 class InitialConfig:
     u0:           float
     v0:           float
+    base_O:      float
     lambda_0_nm: float
 
 @dataclass
@@ -128,6 +129,7 @@ def load_sim_config(path: str) -> SimConfig:
     initial_cfg = InitialConfig(
         u0           = init['u0'],
         v0           = init['v0'],
+        base_O      = init['base_O'],
         lambda_0_nm  = init['lambda_0_nm'],
     )
 

@@ -65,10 +65,9 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
             output_dir = f"{base_output}{suffix}"
 
             # instantiate and run profile
-            # TODO: fix t_hold to total_hours and use in CNsolver
             time_h, temps_K, total_hours = ProfileClass(cfg, start_K, bake_K, t_h).generate()
 
-            print(f"Running {profile} profile @ {bake_C}°C, {total_hours:.2f}h")
+            print(f"Running {profile} profile @ {bake_C}°C, hold time: {t_h:.2f}h, total time: {total_hours:.2f}h")
             solver = CNSolver(cfg, temps_K, total_hours, civ_model)
             U_record = solver.get_oxygen_profile()
             if reoxidize:
@@ -81,7 +80,7 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
                 cfg,
                 x_grid,
                 o_total,
-                total_hours,
+                t_h,
                 bake_K,
                 output_dir
             )
@@ -92,12 +91,12 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
             # run Ciovati model comparison
             test_dir = os.path.join(
                 "test_output",
-                f"bake_{bake_C:.0f}_h_{total_hours:.1f}"
+                f"bake_{bake_C:.0f}_h_{t_h:.1f}"
             )
             test_oxygen_profile(
                 cfg,
                 x_grid,
-                total_hours,
+                t_h,
                 bake_K,
                 o_total,
                 output_dir=test_dir
@@ -105,8 +104,7 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
             end = time.perf_counter()
 
             print(
-                f"Done: bake={bake_C:.0f}°C, total_time={total_hours:.1f}h, "
-                f"profile={profile}, "
+                f"Done: {profile} profile @ {bake_C:.0f}°C, hold time: {t_h:.2f}h, total_time={total_hours:.1f}h, "
                 f"Completed in {end - start:.2f}s"
             )
 

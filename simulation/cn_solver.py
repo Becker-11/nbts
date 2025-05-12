@@ -32,23 +32,20 @@ class CNSolver:
 
     def __init__(self, cfg, temps_K, total_h, civ_model, U_initial=None):
         """Initialize the CNSolver with given parameters."""
-        self.q = civ_model.q
-        self.D = civ_model.D
-        self.k = civ_model.k
         self.u_0 = cfg.initial.u0
         self.v_0 = cfg.initial.v0
-        self.t_h = total_h
-        self.x_max = cfg.grid.x_max_nm
-        self.N_x = cfg.grid.n_x
-        self.N_t = cfg.grid.n_t
-
+        self.base_O = cfg.initial.base_O
         self.T = temps_K
-
-        # TODO: fix initial concentration to use dissolution_species
-        #self.c_0 = dissolution_species.c_Nb2O5(0, T, )  # Initial concentration (Nb2O5)
+        # TODO: fix D to use dissolution_species
+        self.D = civ_model.D
         self.dc_o_dt = dc_O_dt
+        self.q = civ_model.q    
 
         # Spatial and temporal grids
+        self.x_max = cfg.grid.x_max_nm
+        self.N_x = cfg.grid.n_x
+        self.t_h = total_h
+        self.N_t = cfg.grid.n_t
         self.x_grid = np.linspace(0.0, self.x_max, self.N_x, dtype=np.double)
         self.dx = np.diff(self.x_grid)[0]
 
