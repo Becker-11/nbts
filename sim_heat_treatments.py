@@ -68,6 +68,7 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
             # TODO: fix t_hold to total_hours and use in CNsolver
             time_h, temps_K, total_hours = ProfileClass(cfg, start_K, bake_K, t_h).generate()
 
+            print(f"Running {profile} profile @ {bake_C}°C, {total_hours:.2f}h")
             solver = CNSolver(cfg, temps_K, total_hours, civ_model)
             U_record = solver.get_oxygen_profile()
             if reoxidize:

@@ -4,142 +4,119 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Base directory containing simulation folders (named like "sim_t0.1_T100", etc.)
-base_dir = 'sim_output'
-subfolders = glob.glob(os.path.join(base_dir, 'sim_t*_T*'))
+# ─── USER CONFIG ────────────────────────────────────────────────────────────────
+BASE_DIR   = "experiments/ramp_rate_comparison"
+PLOTS_DIR  = "experiments/ramp_rate_plots"
+os.makedirs(PLOTS_DIR, exist_ok=True)
 
-# Lists to store simulation parameters and metrics
-time_vals = []
-temp_vals = []
-ratio_vals = []       # Metric A: (max current density)/(surface current density)
-x_peak_vals = []      # Metric B: x-position where current density peaks
-surf_ratio_vals = []  # Metric C: (current density at surface)/(J_max at surface)
+RAMP_RATES = [1, 2, 5, 10]              # °C/min
+CONST_FILE = "oxygen_profile_const.csv"
 
-for folder in subfolders:
-    folder_name = os.path.basename(folder)  # e.g., "sim_t0.1_T100"
-    parts = folder_name.split('_')           # e.g., ["sim", "t0.1", "T100"]
-    
-    # Parse time and temperature from folder name
+OUT_MAX_PDF = os.path.join(PLOTS_DIR, "max_diff_heatmaps.pdf")
+OUT_DEP_PDF = os.path.join(PLOTS_DIR, "depth_at_max_heatmaps.pdf")
+# ────────────────────────────────────────────────────────────────────────────────
+
+# 1) discover all subfolders like "100C_6h"
+all_dirs = [
+    d for d in glob.glob(os.path.join(BASE_DIR, "*"))
+    if os.path.isdir(d) and d.endswith("h") and "C_" in os.path.basename(d)
+]
+
+# 2) parse out all unique temps & hours
+temps, hours = [], []
+for d in all_dirs:
+    name    = os.path.basename(d)         # e.g. "120C_42h"
+    core    = name[:-1]                   # drop trailing 'h' → "120C_42"
+    temp_s, hr_s = core.split("C_")       # → ["120", "42"]
     try:
-        time_val = float(parts[1][1:])  # remove the leading 't'
-        temp_val = float(parts[2][1:])  # remove the leading 'T'
-    except (IndexError, ValueError):
-        continue
-    
-    # Path to the CSV file containing current-density data
-    csv_path = os.path.join(folder, 'current_density.csv')
-    if not os.path.exists(csv_path):
-        continue
-    
-    # Read the CSV; skip initial spaces so that column names are clean.
-    df = pd.read_csv(csv_path, skipinitialspace=True)
-    # Expect columns: "x", "current_density", "J_max", "J_min"
-    if not {"x", "current_density", "J_min"}.issubset(df.columns):
+        temps.append(float(temp_s))
+        hours.append(float(hr_s))
+    except ValueError:
         continue
 
-    # -----------------------------
-    # Metric A: (max current density) / (current density at surface)
-    J_max_val = df["current_density"].max()
-    # Try to get the row where x == 0. If not found, use the row with the minimum x value.
-    surface_df = df.loc[df["x"] == 0, "J_min"]
-    if surface_df.empty:
-        surface_df = df.loc[[df["x"].idxmin()], "J_min"]
-    J_surface_val = surface_df.iloc[0]
-    ratio_A = J_max_val / J_surface_val
+unique_temps = sorted(set(temps))
+unique_hours = sorted(set(hours))
 
-    # -----------------------------
-    # Metric B: x position where the current density peaks
-    x_peak = df.loc[df["current_density"].idxmax(), "x"]
+# 3) prepare empty 2D arrays for each ramp rate
+Z_max = {r: np.full((len(unique_temps), len(unique_hours)), np.nan)
+         for r in RAMP_RATES}
+Z_dep = {r: np.full((len(unique_temps), len(unique_hours)), np.nan)
+         for r in RAMP_RATES}
 
-    # -----------------------------
-    # Metric C: (current density at surface) / (J_max at surface)
-    surface_Jmax_df = df.loc[df["x"] == 0, "current_density"]
-    if surface_Jmax_df.empty:
-        surface_Jmax_df = df.loc[[df["x"].idxmin()], "curent_density"]
-    J_max_surface = surface_Jmax_df.iloc[0]
-    ratio_C = J_max_surface / J_surface_val
+# 4) loop, compute metrics
+for d in all_dirs:
+    name    = os.path.basename(d)
+    core    = name[:-1]
+    temp_s, hr_s = core.split("C_")
+    try:
+        t = float(temp_s)
+        h = float(hr_s)
+    except ValueError:
+        continue
 
-    # Save simulation parameters and computed metrics
-    time_vals.append(time_val)
-    temp_vals.append(temp_val)
-    ratio_vals.append(ratio_A)
-    x_peak_vals.append(x_peak)
-    surf_ratio_vals.append(ratio_C)
+    i_t = unique_temps .index(t)
+    i_h = unique_hours.index(h)
 
-# Convert lists to NumPy arrays
-time_vals = np.array(time_vals)
-temp_vals = np.array(temp_vals)
-ratio_vals = np.array(ratio_vals)
-x_peak_vals = np.array(x_peak_vals)
-surf_ratio_vals = np.array(surf_ratio_vals)
+    # load constant profile
+    const_fp = os.path.join(d, CONST_FILE)
+    if not os.path.exists(const_fp):
+        print(f"⚠️ missing constant in {d}, skipping")
+        continue
 
-# Create a grid for the unique simulation times and temperatures
-unique_times = np.unique(time_vals)
-unique_temps = np.unique(temp_vals)
+    df0 = pd.read_csv(const_fp)
+    x  = df0.iloc[:, 0].to_numpy()   # depth
+    c0 = df0.iloc[:, -1].to_numpy()  # concentration
 
-# Initialize 2D arrays (rows: temperature, columns: time) for each metric
-Z_ratio = np.full((len(unique_temps), len(unique_times)), np.nan)       # Metric A
-Z_xpeak = np.full((len(unique_temps), len(unique_times)), np.nan)       # Metric B
-Z_surf_ratio = np.full((len(unique_temps), len(unique_times)), np.nan)  # Metric C
+    # for each ramp rate
+    for r in RAMP_RATES:
+        fp = os.path.join(d, f"oxygen_profile_{r}C_min.csv")
+        if not os.path.exists(fp):
+            continue
 
-# Fill the 2D arrays using the simulation parameters as indices
-for (t, T, r, xp, sr) in zip(time_vals, temp_vals, ratio_vals, x_peak_vals, surf_ratio_vals):
-    i_time = np.where(unique_times == t)[0][0]
-    i_temp = np.where(unique_temps == T)[0][0]
-    Z_ratio[i_temp, i_time] = r
-    Z_xpeak[i_temp, i_time] = xp
-    Z_surf_ratio[i_temp, i_time] = sr
+        df  = pd.read_csv(fp)
+        cr  = df.iloc[:, -1].to_numpy()
+        diff = np.abs(cr - c0)
+        idx  = np.nanargmax(diff)
 
-# Create a meshgrid for plotting
-X, Y = np.meshgrid(unique_times, unique_temps)
+        Z_max[r][i_t, i_h] = diff[idx]
+        Z_dep[r][i_t, i_h] = x[idx]
 
-# Create the "analysis" folder if it doesn't exist
-analysis_dir = "analysis"
-if not os.path.exists(analysis_dir):
-    os.makedirs(analysis_dir)
+        print(f"Folder {name}, {r}°C/min → "
+              f"max|ΔC|={diff[idx]:.2e} at depth={x[idx]:.2e}")
 
+# 5) build meshgrid for plotting
+H, T = np.meshgrid(unique_hours, unique_temps)
 
-# -----------------------------
-# Plot 1: Metric A – Original Ratio
-plt.figure(figsize=(8, 6))
-mesh1 = plt.pcolormesh(X, Y, Z_ratio, shading="gouraud", cmap='cividis')
-cbar = plt.colorbar(mesh1, label='maximum J(x) / maximum supercurrent in clean Nb')
-cbar.set_label('maximum J(x) / maximum supercurrent in clean Nb', fontsize=12)
-cs1 = plt.contour(X, Y, Z_ratio, levels=10, colors='white', linewidths=1)
-plt.clabel(cs1, inline=True, fontsize=8)
-plt.xlabel('Time (h)', fontsize=14)
-plt.ylabel('Temperature (°C)', fontsize=14)
-#plt.title('Max Current Density over Surface Current Density')
-plt.tight_layout()
-plt.savefig(os.path.join(analysis_dir, 'ratio_max_over_surface.pdf'))
-plt.close()
+# 6) Plot A: max|ΔC|
+fig1, axes1 = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey=True)
+axes1 = axes1.flatten()
+for ax, r in zip(axes1, RAMP_RATES):
+    pcm = ax.pcolormesh(H, T, Z_max[r], shading="auto")
+    cb  = fig1.colorbar(pcm, ax=ax, label="Max |ΔC|")
+    cs  = ax.contour(H, T, Z_max[r], levels=8, colors="white", linewidths=1)
+    ax.clabel(cs, inline=True, fmt="%.2e", fontsize=8)
+    ax.set_title(f"{r} °C/min")
+    ax.set_xlabel("Hold time (h)")
+    ax.set_ylabel("Bake temp (°C)")
 
-# -----------------------------
-# Plot 2: Metric B – x Position of the Current Density Peak
-plt.figure(figsize=(8, 6))
-mesh2 = plt.pcolormesh(X, Y, Z_xpeak, shading="gouraud", cmap='cividis')
-cbar1 = plt.colorbar(mesh2, label='x position of supercurrent density peak')
-cbar1.set_label('x position of supercurrent density peak', fontsize=14)  # Adjust the label font size
-cs2 = plt.contour(X, Y, Z_xpeak, levels=3, colors='white', linewidths=1)
-plt.clabel(cs2, inline=True, fontsize=20)
-plt.xlabel('Time (h)', fontsize=16)
-plt.ylabel('Temperature (°C)', fontsize=16)
-#plt.title('x Position of Current Density Peak')
-plt.tight_layout()
-plt.savefig(os.path.join(analysis_dir, 'x_peak_position.pdf'))
-plt.close()
+fig1.suptitle("Maximum difference vs. constant profile", y=0.95)
+fig1.tight_layout()
+fig1.savefig(OUT_MAX_PDF)
+print(f"Wrote {OUT_MAX_PDF}")
 
-# -----------------------------
-# Plot 3: Metric C – Surface Current Density Ratio
-plt.figure(figsize=(8, 6))
-mesh3 = plt.pcolormesh(X, Y, Z_surf_ratio, shading="gouraud", cmap='cividis')
-cbar2 = plt.colorbar(mesh3, label='J(x) surface value / maximum supercurrent in clean Nb')
-cbar2.set_label('J(x) surface value / maximum supercurrent in clean Nb', fontsize=14)
-cs3 = plt.contour(X, Y, Z_surf_ratio, levels=10, colors='white', linewidths=1)
-plt.clabel(cs3, inline=True, fontsize=12)
-plt.xlabel('Time (h)', fontsize=16)
-plt.ylabel('Temperature (°C)', fontsize=16)
-#plt.title('Surface Current Density Ratio')
-plt.tight_layout()
-plt.savefig(os.path.join(analysis_dir, 'surface_current_ratio.pdf'))
-plt.close()
+# 7) Plot B: depth at max|ΔC|
+fig2, axes2 = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey=True)
+axes2 = axes2.flatten()
+for ax, r in zip(axes2, RAMP_RATES):
+    pcm = ax.pcolormesh(H, T, Z_dep[r], shading="auto")
+    cb  = fig2.colorbar(pcm, ax=ax, label="Depth of max ΔC")
+    cs  = ax.contour(H, T, Z_dep[r], levels=8, colors="white", linewidths=1)
+    ax.clabel(cs, inline=True, fmt="%.2f", fontsize=8)
+    ax.set_title(f"{r} °C/min")
+    ax.set_xlabel("Hold time (h)")
+    ax.set_ylabel("Bake temp (°C)")
+
+fig2.suptitle("Depth at which maximum difference occurs", y=0.95)
+fig2.tight_layout()
+fig2.savefig(OUT_DEP_PDF)
+print(f"Wrote {OUT_DEP_PDF}")

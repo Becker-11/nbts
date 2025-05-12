@@ -11,8 +11,8 @@ from simulation.ciovati_model import CiovatiModel
 
 # ─── Experiment parameters ─────────────────────────────────────────────────────
 config_path    = "config/sim_config.yml"
-bake_temp_C    = np.arange(120, 181.0, 20)                   # °C
-hold_time_h    = np.arange(48, 73, 6.0)                     # hours
+bake_temp_C    = np.arange(200, 201, 1)                   # °C
+hold_time_h    = np.arange(6, 7, 1)                       # hours
 ramp_rates     = [1, 2, 5, 10]      # °C/min
 
 base_exp_dir   = "experiments/ramp_rate_comparison"
@@ -46,7 +46,6 @@ comparison_stats = []
 
 # ─── 1) Generate curves & metrics ──────────────────────────────────────────────
 ref_profile = None
-fig1, (ax_o, ax_t) = plt.subplots(1, 2, figsize=(12, 5))
 for bake_C in bake_temp_C:
     for hold in hold_time_h:
 
@@ -115,7 +114,7 @@ for bake_C in bake_temp_C:
                 "U_final":  U_final,
             })
             filename = f"oxygen_profile_{rr:.2g}C_min.csv"
-            df_const.to_csv(_paths(filename, subdir), index=False)
+            df_timedep.to_csv(_paths(filename, subdir), index=False)
 
             temp_filename = f"temps_{rr:.2g}C_min.csv"
             df_temps_ramp = pd.DataFrame({
@@ -146,6 +145,7 @@ for bake_C in bake_temp_C:
             })
         
         # plotting
+            fig1, (ax_o, ax_t) = plt.subplots(1, 2, figsize=(12, 5))
             ax_o.plot(x_grid, U_final, label=f"{rr:.2g} °C/min")
             ax_t.plot(times_h, T_K-273.15)
             if rr == 1:
@@ -165,6 +165,7 @@ for bake_C in bake_temp_C:
         fig1.legend(h_o, l_o, loc="center right", title="Ramp rate", frameon=True)
         fig1.tight_layout(rect=[0, 0, 0.85, 1])
         fig1.savefig(_paths(plot_cmp, subdir), dpi=300)
+        plt.close(fig1)
 
         df_rates = pd.DataFrame(rates_metrics)
         df_rates.to_csv(_paths(metrics_rates_csv, subdir), index=False)
@@ -191,6 +192,7 @@ for bake_C in bake_temp_C:
         ax3.legend(loc="best", title="Ramp rate", frameon=True)
         fig3.tight_layout()
         fig3.savefig(_paths(plot_diff_const, subdir), dpi=300)
+        plt.close(fig3)
 
 
         # ─── 4) Difference plot & statistical comparison ───────────────────────────────
@@ -209,6 +211,7 @@ for bake_C in bake_temp_C:
         ax4.set_title("Difference between ramp rates"); ax4.legend()
         fig4.tight_layout()
         fig4.savefig(_paths(plot_diff, subdir), dpi=300)
+        plt.close(fig4)
 
         # Save comparison stats
         dfs = pd.DataFrame(comparison_stats)

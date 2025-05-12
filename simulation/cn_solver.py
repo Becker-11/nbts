@@ -8,7 +8,7 @@ see also: https://math.stackexchange.com/a/3311598
 import numpy as np
 from scipy import sparse
 #from simulation.ciovati_model import D, q
-import simulation.dissolution_species
+from simulation.dissolution_species import dc_O_dt
 
 class CNSolver:
     # TODO: fix docementation
@@ -46,6 +46,7 @@ class CNSolver:
 
         # TODO: fix initial concentration to use dissolution_species
         #self.c_0 = dissolution_species.c_Nb2O5(0, T, )  # Initial concentration (Nb2O5)
+        self.dc_o_dt = dc_O_dt
 
         # Spatial and temporal grids
         self.x_grid = np.linspace(0.0, self.x_max, self.N_x, dtype=np.double)
@@ -140,7 +141,8 @@ class CNSolver:
                 U_record[i] = self.U_initial.toarray()
             else:
                 # Source term (plane source at x = 0)
-                f_vec = sparse.csr_array([self.q(t, self.T[i]) * (self.dt / self.dx)] + [0] * (self.N_x - 1))
+                #f_vec = sparse.csr_array([self.q(t, self.T[i]) * (self.dt / self.dx)] + [0] * (self.N_x - 1))
+                f_vec = sparse.csr_array([self.dc_o_dt(t, self.T[i], self.u_0, 0) * (self.dt / self.dx)] + [0] * (self.N_x - 1)) 
 
                 # Generate matrices (could be precomputed if D_u is constant)
                 A, B = self.gen_sparse_matrices(i)
