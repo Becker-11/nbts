@@ -63,10 +63,11 @@ class CNSolver:
 
         # Constants
         self.D_u_max = self.D(np.max(self.T))  # Maximum diffusion coefficient (in nm^2/s)
-        self.r = (np.max(self.D_u_max) * self.dt) / (self.dx * self.dx)
-        self.stability = "STABLE" if self.r <= 0.5 else "POTENTIAL OSCILLATIONS"
+        self.r_max = (np.max(self.D_u_max) * self.dt) / (self.dx * self.dx)
+        self.stability = "STABLE" if self.r_max <= 0.5 else "POTENTIAL OSCILLATIONS"
 
-        self.sigma = None
+        self.r = float
+        self.sigma = float
 
 
     def gen_sparse_matrices(self, i):      
@@ -82,6 +83,7 @@ class CNSolver:
         # Initialize the diffusion coefficient for time t
         self.D_u = self.D(self.T[i])  # Diffusion coefficient (in nm^2/s)
         # Update the stability parameter
+        self.r = (self.D_u * self.dt) / (self.dx * self.dx)
         # Crank-Nicolson proportionality term
         self.sigma = 0.5 * self.r
 
