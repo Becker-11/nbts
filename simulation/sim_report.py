@@ -15,11 +15,14 @@ class GenSimReport:
         fig = report.plot_overview()
     """
 
-    def __init__(self, cfg, x, o_total, t, T, output_dir="sim_output"):
+    def __init__(self, cfg, x, o_total, t, T, time_h, temps_K, profile, output_dir="sim_output"):
         # raw inputs
         self.cfg = cfg
         self.x = np.asarray(x)
         self.o_total = np.asarray(o_total)
+        self.time_h = time_h
+        self.temps_K = temps_K
+        self.profile = profile
         self.t = t
         self.T = T
         self.lambda_0 = 27  # nm: clean-limit penetration depth
@@ -105,7 +108,11 @@ class GenSimReport:
         # save data arrays to data folder
         for key, arr in data_dict.items():
             arr = np.asarray(arr)
-            if arr.ndim == 1:
+            if key == "temperature_profile":
+                # stack time and temperature
+                data_to_save = np.column_stack((self.time_h, arr))
+                header = f"time,{key}"
+            elif arr.ndim == 1:
                 # stack x and y
                 data_to_save = np.column_stack((self.x, arr))
                 header = f"x,{key}"
@@ -156,6 +163,17 @@ class GenSimReport:
         ax.set_ylim(0, None)
         ax.legend()
 
+    def plot_temp(self, ax):
+        ax.plot(self.time_h, self.temps_K - 273.15, label=self.profile)
+        ax.set_xlabel('Time (h)')
+        ax.set_ylabel('Temperature (°C)')
+        ax2 = ax.secondary_yaxis(
+            'right',
+            functions=(lambda x: x + 273.15, lambda x: x - 273.15)
+        )
+        ax2.set_ylabel('Temperature (K)')
+        ax.legend(loc='best')
+
     # -- Single-quantity suppression/enhancement plotters --
     def plot_suppression(self, ax, invert=False):
         if invert:
@@ -176,6 +194,7 @@ class GenSimReport:
         ax.set_xlabel(r'$x$ (nm)')
         ax.legend()
 
+    # TODO: rename to plot_ratio
     def plot_ratio(self, ax):
         ratio = self.enhancement_factor * self.current_suppression_factor
         ax.plot(self.x, ratio, '-', label='Ratio of enhancement and suppression')
@@ -245,5 +264,20 @@ class GenSimReport:
         ax.set_title(f"Suppression factor at T={self.T-273.15:.1f}\u00B0C, t={self.t:.1f}h")
         data = {'suppression_factor': self.suppression_factor}
         self.save_report(fig, data, tag='suppression_factor')
+        return fig
+    
+    def plot_temp_profile(self):
+        """Single-panel temperature profile."""
+        fig, ax = plt.subplots()
+        self.plot_temp(ax)
+        ax.set_ylim(self.cfg.temp_profile.start_C, self.temps_K.max() - 273.15 + 10)
+        ax.set_xlim(0, self.time_h.max() + 1)
+        ax.set_title(f"{self.profile} temperature profile at T={self.T-273.15:.1f}\u00B0C, t={self.t:.1f}h,"
+                     f" ramp={self.cfg.temp_profile.ramp_rate_C_per_min:.1f}\u00B0C/min")
+        plt.tight_layout()
+        data = {
+            'temperature_profile': self.temps_K
+            }
+        self.save_report(fig, data, tag='temperature_profile')
         return fig
     

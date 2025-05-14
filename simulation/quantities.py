@@ -37,7 +37,8 @@ def ell(
     c_ppma = c * stoich_per_at_percent * ppma_per_stoich
 
     # Clip the denominator to avoid it being too small
-    denominator = np.clip(a_0 * c_ppma, epsilon, None)
+    #denominator = np.clip(a_0 * c_ppma, epsilon, None)
+    denominator = a_0 * c_ppma
 
     ell_m = sigma_0 / denominator  # in meters
     nm_per_m = 1e9

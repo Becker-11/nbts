@@ -82,10 +82,14 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False):
                 o_total,
                 time_hold,
                 bake_K,
+                time_h,
+                temps_K,
+                profile,
                 output_dir
             )
             report.plot_overview()
             report.plot_suppression_factor()
+            report.plot_temp_profile()
             report.plot_suppression_factor_comparison()
 
             # run Ciovati model comparison

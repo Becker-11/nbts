@@ -4,8 +4,8 @@ time:
   step_h: 1          # time step (h)
 
 temperature:
-  start_C: 120.0      # start temp (°C)
-  stop_C: 120.0      # stop temp (°C)
+  start_C: 122.0      # start temp (°C)
+  stop_C: 122.0      # stop temp (°C)
   step_C: 1.0        # temp step (°C)
 
 temp_profile:
@@ -25,9 +25,9 @@ grid:
   n_t: 3001          # time grid points
 
 initial:
-  u0: 189.5    # initial total oxygen per unit area from Nb205 (at.%·nm)
-  v0: 5.08      # initial total amount of oxygen (at.%·nm)
-  base_O: 0 #0.005  # initial base oxygen concentration (at.%)
+  u0: 189.5 #1000    # initial total oxygen per unit area from Nb205 (at.%·nm)
+  v0: 5.08  # 10    # initial total amount of oxygen (at.%·nm)
+  base_O: 0.005 #0 # initial base oxygen concentration (at.%)
   lambda_0_nm: 27.0        # clean‐limit penetration depth (nm)
 
 ciovati:
