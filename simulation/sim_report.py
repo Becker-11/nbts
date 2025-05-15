@@ -1,6 +1,7 @@
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from simulation.gle_solver import GLESolver
 from simulation.quantities import ell, lambda_eff, lambda_eff_corr, J, B
 
@@ -14,6 +15,28 @@ class GenSimReport:
         report.compute()  # compute profiles
         fig = report.plot_overview()
     """
+    # -----------------------------------------------------------------
+    #  Class‑level schema:  key → {new_col:  lambda self → 1‑D array}
+    # -----------------------------------------------------------------
+    EXTRA_COLS = {
+        "current_density": {
+            "J_clean": lambda self: self.J_clean,
+            "J_dirty": lambda self: self.J_dirty,
+        },
+        "current_density_corrected": {
+            "J_clean_corr": lambda self: self.J_clean_corr,
+            "J_dirty_corr": lambda self: self.J_dirty_corr,
+        },
+        "screening_profile": {
+            "B_clean": lambda self: self.B_clean,
+            "B_dirty": lambda self: self.B_dirty,
+        },
+        "screening_profile_corrected": {
+            "B_clean_corr": lambda self: self.B_clean_corr,
+            "B_dirty_corr": lambda self: self.B_dirty_corr,
+        },
+    }
+
 
     def __init__(self, cfg, x, o_total, t, T, time_h, temps_K, profile, output_dir="sim_output"):
         # raw inputs
@@ -25,6 +48,7 @@ class GenSimReport:
         self.profile = profile
         self.t = t
         self.T = T
+        # TODO: fix lambda_0 to be consistent naming with lambda_L
         self.lambda_0 = 27  # nm: clean-limit penetration depth
         # placeholders for computed arrays
         self.ell_val = None
@@ -38,6 +62,10 @@ class GenSimReport:
         self.B_dirty = None
         self.J_clean = None
         self.J_dirty = None
+        self.B_clean_corr = None
+        self.B_dirty_corr = None
+        self.J_clean_corr = None
+        self.J_dirty_corr = None
         # factors
         self.suppression_factor = None
         self.enhancement_factor = None
@@ -70,13 +98,18 @@ class GenSimReport:
         self.J_dirty = J(self.x, H0, self.lambda_eff_val.max())   # max J
         self.J_clean = J(self.x, H0, self.lambda_eff_val.min())   # min J
 
+        self.B_dirty_corr = B(self.x, H0, self.lambda_eff_val_corr.max())   # max B (corr)
+        self.B_clean_corr = B(self.x, H0, self.lambda_eff_val_corr.min())   # min B (corr)
+        self.J_dirty_corr = J(self.x, H0, self.lambda_eff_val_corr.max())   # max J (corr)
+        self.J_clean_corr = J(self.x, H0, self.lambda_eff_val_corr.min())   # min J (corr)
+
         # derived factors
-        J0 = self.J_clean[0]
+        J0 = self.J_clean_corr[0]
         num = self.lambda_0 * J0
         den = np.clip(self.lambda_eff_val_corr * self.current_density_corr, 1e-10, None)
         self.suppression_factor = num / den
         self.enhancement_factor = self.lambda_eff_val_corr / self.lambda_0
-        self.current_suppression_factor = self.current_density_corr / self.J_clean
+        self.current_suppression_factor = self.current_density_corr / self.J_clean_corr
 
         self.COMPUTE = True
 
@@ -85,42 +118,51 @@ class GenSimReport:
         folder.mkdir(parents=True, exist_ok=True)
         return folder
 
+
+    # -----------------------------------------------------------------
+    # 2.  Generic writer
+    # -----------------------------------------------------------------
+    def _to_dataframe(self, key, arr):
+        """Return a DataFrame with the right index/extra columns."""
+        arr = np.asarray(arr)
+
+        # baseline columns
+        if key == "temperature_profile":               # time series
+            df = pd.DataFrame({"time": self.time_h, key: arr})
+        elif arr.ndim == 1:                            # spatial profile
+            df = pd.DataFrame({"x": self.x, key: arr})
+        else:                                          # 2‑D array
+            cols = {f"col{i}": arr[:, i] for i in range(arr.shape[1])}
+            df = pd.DataFrame(cols)
+
+        # inject any extras declared in EXTRA_COLS
+        for col, fn in self.EXTRA_COLS.get(key, {}).items():
+            df[col] = fn(self)
+
+        return df
+
+
     def save_report(self, fig, data_dict, tag):
         """
-        Save a figure and its associated data arrays to disk.
+        Save figure + data arrays.
 
-        The figure is saved as {tag}.pdf in the 'plots' subfolder, and each array
-        in data_dict is saved as {key}.csv in the 'data' subfolder of the simulation folder.
+        * plots/{tag}.pdf
+        * data/{key}.csv
         """
-        # base simulation folder
         folder = self._make_folder()
-        # create subfolders for plots and data
         plots_folder = folder / "plots"
-        data_folder = folder / "data"
+        data_folder  = folder / "data"
         plots_folder.mkdir(parents=True, exist_ok=True)
-        data_folder.mkdir(parents=True, exist_ok=True)
+        data_folder.mkdir(parents=True,  exist_ok=True)
 
-        # save figure to plots folder
-        fig_path = plots_folder / f"{tag}.pdf"
-        fig.savefig(fig_path)
+        # ---- figure ---------------------------------------------------
+        fig.savefig(plots_folder / f"{tag}.pdf")
         plt.close(fig)
 
-        # save data arrays to data folder
+        # ---- data -----------------------------------------------------
         for key, arr in data_dict.items():
-            arr = np.asarray(arr)
-            if key == "temperature_profile":
-                # stack time and temperature
-                data_to_save = np.column_stack((self.time_h, arr))
-                header = f"time,{key}"
-            elif arr.ndim == 1:
-                # stack x and y
-                data_to_save = np.column_stack((self.x, arr))
-                header = f"x,{key}"
-            else:
-                data_to_save = arr
-                header = ",".join(f"col{i}" for i in range(arr.shape[1]))
-            csv_path = data_folder / f"{key}.csv"
-            np.savetxt(csv_path, data_to_save, delimiter=",", header=header, comments="")
+            df = self._to_dataframe(key, arr)
+            df.to_csv(data_folder / f"{key}.csv", index=False)
 
     # -- Single-quantity plotters, overview quantities --
     def plot_oxygen(self, ax):

@@ -47,7 +47,6 @@ from simulation.sim_report import GenSimReport
 from simulation.temp_profile import ConstantProfile, TimeDepProfile, TwoStepProfile
 from config.sim_config import load_sim_config
 from simulation.ciovati_model import CiovatiModel
-from test_sim_heat_treatments import test_oxygen_profile
 
 ###############################################################################
 # ─── Internal helpers ───────────────────────────────────────────────────────
@@ -156,9 +155,6 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False) -> N
             report.plot_temp_profile()
             report.plot_suppression_factor_comparison()
 
-            test_dir = os.path.join("test_output", f"bake_{bake_C:.0f}_h_{time_hold:.1f}")
-            test_oxygen_profile(cfg, x_grid, time_hold, bake_K, o_total, output_dir=test_dir)
-
             # ── Completion message with timing ──
             elapsed = time.perf_counter() - tic
             print(
@@ -204,7 +200,7 @@ def main() -> None:
     stamp = datetime.now().strftime("%Y-%m-%d")
     ghash = _git_hash() or "no-git"
     run_dir = Path("experiments") / f"{stamp}_{args.profile}_{ghash}"
-    (run_dir / "artifacts").mkdir(parents=True, exist_ok=True)
+    (run_dir / "results").mkdir(parents=True, exist_ok=True)
 
     _save_run_metadata(cfg_path, args, run_dir, cfg)
 
