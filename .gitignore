@@ -3,6 +3,7 @@
 /test_output/
 /experiments/
 /experiments_*/
+/analysis/
 
 .DS_Store
 

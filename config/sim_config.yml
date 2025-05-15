@@ -1,6 +1,6 @@
 time:
-  start_h: 48         # start time (h)
-  stop_h: 48         # stop time (h)
+  start_h: 24         # start time (h)
+  stop_h: 24         # stop time (h)
   step_h: 1          # time step (h)
 
 temperature:
