@@ -9,4 +9,5 @@ dependencies:
   - pyyaml
   - scipy
   - pandas
+  - pytest
 prefix: /opt/anaconda3/envs/NbHeatTreatments
