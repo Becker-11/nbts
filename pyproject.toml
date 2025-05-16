@@ -1,0 +1,40 @@
+# pyproject.toml
+###############################################################################
+# 1. Tell pip how to build the project (build‑system table)                   #
+###############################################################################
+[build-system]
+requires = ["setuptools>=64", "wheel"]   # >=64 implements editable installs (PEP 660)
+build-backend = "setuptools.build_meta"
+
+###############################################################################
+# 2. Core project metadata (PEP 621)                                          #
+###############################################################################
+[project]
+name        = "nbts"
+version     = "0.1.0"
+description = "Niobium Baking Treatment Simulator"
+authors     = [{ name = "Rowan Becker" }]
+
+# Equivalent to install_requires=[...] in setup.py
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    # add the rest here when you know the exact pins
+]
+
+###############################################################################
+# 3. Console‑script entry points                                              #
+###############################################################################
+[project.scripts]
+sim = "simulation.sim_heat_treatments:main"
+
+###############################################################################
+# 4. Package discovery (replacement for find_packages())                      #
+###############################################################################
+# Default behaviour is already “find everything inside the project directory
+# that looks like a package”. If you want to be explicit or exclude tests:
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["tests*", "docs*"]     # tailor to your layout
+###############################################################################

@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Base directory containing simulation folders (named like "sim_t0.1_T100", etc.)
-base_dir = 'sim_output'
+base_dir = 'experiments/2025-05-15_const_2a1de1d/results_const_temp'
 subfolders = glob.glob(os.path.join(base_dir, 'sim_t*_T*'))
 
 # Lists to store simulation parameters and metrics
@@ -34,28 +34,28 @@ for folder in subfolders:
     # Read the CSV; skip initial spaces so that column names are clean.
     df = pd.read_csv(csv_path, skipinitialspace=True)
     # Expect columns: "x", "current_density", "J_max", "J_min"
-    if not {"x", "current_density", "J_clean"}.issubset(df.columns):
+    if not {"x", "current_density_corrected", "J_clean_corr"}.issubset(df.columns):
         continue
 
     # -----------------------------
     # Metric A: (max current density) / (current density at surface)
-    J_max_val = df["current_density"].max()
+    J_max_val = df["current_density_corrected"].max()
     # Try to get the row where x == 0. If not found, use the row with the minimum x value.
-    surface_df = df.loc[df["x"] == 0, "J_clean"]
+    surface_df = df.loc[df["x"] == 0, "J_clean_corr"]
     if surface_df.empty:
-        surface_df = df.loc[[df["x"].idxmin()], "J_clean"]
+        surface_df = df.loc[[df["x"].idxmin()], "J_clean_corr"]
     J_surface_val = surface_df.iloc[0]
     ratio_A = J_max_val / J_surface_val
 
     # -----------------------------
     # Metric B: x position where the current density peaks
-    x_peak = df.loc[df["current_density"].idxmax(), "x"]
+    x_peak = df.loc[df["current_density_corrected"].idxmax(), "x"]
 
     # -----------------------------
     # Metric C: (current density at surface) / (J_max at surface)
-    surface_Jmax_df = df.loc[df["x"] == 0, "current_density"]
+    surface_Jmax_df = df.loc[df["x"] == 0, "current_density_corrected"]
     if surface_Jmax_df.empty:
-        surface_Jmax_df = df.loc[[df["x"].idxmin()], "curent_density"]
+        surface_Jmax_df = df.loc[[df["x"].idxmin()], "curent_density_corrected"]
     J_max_surface = surface_Jmax_df.iloc[0]
     ratio_C = J_max_surface / J_surface_val
 
@@ -94,7 +94,7 @@ for (t, T, r, xp, sr) in zip(time_vals, temp_vals, ratio_vals, x_peak_vals, surf
 X, Y = np.meshgrid(unique_times, unique_temps)
 
 # Create the "analysis" folder if it doesn't exist
-analysis_dir = "analysis"
+analysis_dir = os.path.join("experiments/2025-05-15_const_2a1de1d", "analysis")
 if not os.path.exists(analysis_dir):
     os.makedirs(analysis_dir)
 
@@ -143,3 +143,5 @@ plt.ylabel('Temperature (°C)', fontsize=16)
 plt.tight_layout()
 plt.savefig(os.path.join(analysis_dir, 'surface_current_ratio.pdf'))
 plt.close()
+
+print("Analysis complete. Plots saved in:", analysis_dir)

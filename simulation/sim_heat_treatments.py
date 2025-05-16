@@ -22,10 +22,10 @@ provenance under
 
 Run‑folder contents
 -------------------
-* ``sim_config.yml``        – verbatim YAML provided by the user
-* ``run_meta.yml``          – timestamp, CLI flags, git commit hash
-* ``effective_config.yml``  – written *only* if CLI flags override YAML
-* ``artifacts/``            – plots, CSVs, and derived data
+* ``sim_config.yml``                     – verbatim YAML provided by the user
+* ``run_meta.yml``                       – timestamp, CLI flags, git commit hash
+* ``effective_config.yml``               – written *only* if CLI flags override YAML
+* ``results_<temp_profile>/``            – plots, CSVs, and derived data
 """
 
 from __future__ import annotations
