@@ -158,8 +158,8 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False) -> N
             # ── Completion message with timing ──
             elapsed = time.perf_counter() - tic
             print(
-                f"Done: {profile} profile @ {bake_C:.0f}°C, hold time: {time_hold:.2f}h, total_time={total_h:.2f}h, "
-                f"Completed in {elapsed:.2f}s → {output_dir}"
+                f"Done: {profile} profile @ {bake_C:.0f}°C, hold time: {time_hold:.2f}h, total_time={total_h:.2f}h,\n "
+                f"Completed in {elapsed:.2f}s, output → {output_dir}"
             )
 
 ###############################################################################

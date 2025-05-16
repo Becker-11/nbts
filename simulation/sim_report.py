@@ -172,8 +172,8 @@ class GenSimReport:
 
     def plot_mean_free_path(self, ax):
         line, = ax.plot(self.x, self.ell_val, '-', zorder=1, label='Electron Mean-free-path')
-        hmin = ax.axhline(self.ell_val.min(), linestyle=':', label='Min $\ell$')
-        hmax = ax.axhline(self.ell_val.max(), linestyle=':', label='Max $\ell$')
+        hmin = ax.axhline(self.ell_val.min(), linestyle=':', label=r'Min $\ell$')
+        hmax = ax.axhline(self.ell_val.max(), linestyle=':', label=r'Max $\ell$')
         ax.set_ylabel(r'$\ell$ (nm)')
         ax.set_ylim(0, None)
         ax.legend(handles=[line, hmin, hmax])
@@ -181,9 +181,9 @@ class GenSimReport:
     def plot_penetration_depths(self, ax):
         l1, = ax.plot(self.x, self.lambda_eff_val, '-', label='Penetration depth')
         l2, = ax.plot(self.x, self.lambda_eff_val_corr, '-', label='Corrected penetration depth')
-        ax.axhline(self.lambda_eff_val.min(), linestyle=':', label='Min $\lambda_{eff}$')
-        ax.axhline(self.lambda_eff_val.max(), linestyle=':', label='Max $\lambda_{eff}$')
-        ax.axhline(self.lambda_eff_val_corr.max(), linestyle=':', label='Max $\lambda_{eff}$ (corr)')
+        ax.axhline(self.lambda_eff_val.min(), linestyle=':', label=r'Min $\lambda_{eff}$')
+        ax.axhline(self.lambda_eff_val.max(), linestyle=':', label=r'Max $\lambda_{eff}$')
+        ax.axhline(self.lambda_eff_val_corr.max(), linestyle=':', label=r'Max $\lambda_{eff}$ (corr)')
         ax.set_ylabel(r'$\lambda_{eff}$ (nm)')
         ax.legend(handles=[l1, l2])
 
