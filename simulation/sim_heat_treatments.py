@@ -47,6 +47,7 @@ from simulation.sim_report import GenSimReport
 from simulation.temp_profile import ConstantProfile, TimeDepProfile, TwoStepProfile
 from config.sim_config import load_sim_config
 from simulation.ciovati_model import CiovatiModel
+from scripts.simulation_analyzer import CurrentDensityAnalyzer
 
 ###############################################################################
 # ─── Internal helpers ───────────────────────────────────────────────────────
@@ -126,6 +127,9 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False, n_re
             raise ValueError(f"Unknown profile: {profile!r}")
 
     output_dir = cfg.output.directory
+    reox_output_dir = output_dir
+    total_simulations = len(times_h) * len(bake_C_list)
+    threshold = 0
 
     for bake_C in bake_C_list:
         bake_K = bake_C + 273.15
@@ -142,24 +146,38 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False, n_re
 
             if reoxidize:
                 for n in range(n_reoxidize):
-                    reox_output_dir = f"{output_dir}_reoxidize_{n+1}"
-                    report = GenSimReport(cfg, x_grid, o_total, time_hold, bake_K, t_h, temps_K, profile, reox_output_dir)
+                    pass_dir = f"{reox_output_dir}_reoxidize_{n+1}"
+                    report = GenSimReport(cfg, x_grid, o_total, time_hold, bake_K, t_h, temps_K, profile, pass_dir)
                     report.generate()
                     print(f"Re-oxidizing {n+1} pass of {n_reoxidize}...")
                     solver = CNSolver(cfg, temps_K, total_h, civ_model, U_initial=o_total)
                     U_record = solver.get_oxygen_profile()
                     o_total = U_record[-1]
-                    print(f"Re-oxidization pass {n+1} complete. output → {reox_output_dir}")
-                output_dir = f"{output_dir}_reoxidized"
-
-
+                    print(f"Re-oxidization pass {n+1} complete. output → {pass_dir}")
+                output_dir = f"{reox_output_dir}_reoxidized"
             report = GenSimReport(cfg, x_grid, o_total, time_hold, bake_K, t_h, temps_K, profile, output_dir)
             report.generate()
+
 
             # ── Completion message with timing ──
             elapsed = time.perf_counter() - tic
             print(f"Done: {profile} profile @ {bake_C:.0f}°C, hold time: {time_hold:.2f}h, total_time={total_h:.2f}h,\n "
                   f"Completed in {elapsed:.2f}s, output → {output_dir}")
+
+    # TODO: choose a better threshold for analysis
+    print(f"Total simulations: {total_simulations}")
+    if total_simulations > threshold:
+        # ── Generate analysis report ──────────────────────────────
+        if reoxidize:
+            analyzer = CurrentDensityAnalyzer(output_dir, "reoxidized")
+            analyzer.run()
+            for n in range(n_reoxidize):
+                pass_dir = f"{reox_output_dir}_reoxidize_{n+1}"
+                analyzer = CurrentDensityAnalyzer(pass_dir, f"reoxidize_{n+1}")
+                analyzer.run()
+        else:
+            analyzer = CurrentDensityAnalyzer(output_dir)
+            analyzer.run()
 
 ###############################################################################
 # ─── Command‑line interface ─────────────────────────────────────────────────
