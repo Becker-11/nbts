@@ -118,6 +118,12 @@ class GenSimReport:
         folder.mkdir(parents=True, exist_ok=True)
         return folder
 
+    def generate(self):
+        """Generate set of desired plots from computed quantities."""
+        self.plot_overview()
+        self.plot_suppression_factor()
+        self.plot_temp_profile()
+        self.plot_suppression_factor_comparison()
 
     # -----------------------------------------------------------------
     # 2.  Generic writer

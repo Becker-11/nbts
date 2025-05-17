@@ -101,7 +101,7 @@ def _save_run_metadata(cfg_path: Path, cli_ns: argparse.Namespace, run_dir: Path
 # ─── Core simulation logic ──────────────────────────────────────────────────
 ###############################################################################
 
-def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False) -> None:
+def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False, n_reoxidize: int = 0) -> None:
     """Run the simulation sweep for a given configuration and profile."""
 
     times_h = np.arange(cfg.time.start_h, cfg.time.stop_h + cfg.time.step_h, cfg.time.step_h)
@@ -125,42 +125,41 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False) -> N
         case _:
             raise ValueError(f"Unknown profile: {profile!r}")
 
-    base_output = cfg.output.directory
+    output_dir = cfg.output.directory
 
     for bake_C in bake_C_list:
         bake_K = bake_C + 273.15
         for time_hold in times_h:
             tic = time.perf_counter()
 
-            output_dir = f"{base_output}{suffix}"
             t_h, temps_K, total_h = ProfileCls(cfg, start_K, bake_K, time_hold).generate()
-
-            # ── Verbose status message before computation ──
-            print(
-                f"Running {profile} profile @ {bake_C:.0f}°C, hold time: {time_hold:.2f}h, total time: {total_h:.2f}h"
-            )
+            
+            print(f"Running {profile} profile @ {bake_C:.0f}°C, hold time: {time_hold:.2f}h, total time: {total_h:.2f}h")
 
             solver = CNSolver(cfg, temps_K, total_h, civ_model)
             U_record = solver.get_oxygen_profile()
-            if reoxidize:
-                solver = CNSolver(cfg, temps_K, total_h, civ_model, U_initial=U_record[-1])
-                U_record = solver.get_oxygen_profile()
             o_total = U_record[-1]
 
-            report = GenSimReport(
-                cfg, x_grid, o_total, time_hold, bake_K, t_h, temps_K, profile, output_dir
-            )
-            report.plot_overview()
-            report.plot_suppression_factor()
-            report.plot_temp_profile()
-            report.plot_suppression_factor_comparison()
+            if reoxidize:
+                for n in range(n_reoxidize):
+                    reox_output_dir = f"{output_dir}_reoxidize_{n+1}"
+                    report = GenSimReport(cfg, x_grid, o_total, time_hold, bake_K, t_h, temps_K, profile, reox_output_dir)
+                    report.generate()
+                    print(f"Re-oxidizing {n+1} pass of {n_reoxidize}...")
+                    solver = CNSolver(cfg, temps_K, total_h, civ_model, U_initial=o_total)
+                    U_record = solver.get_oxygen_profile()
+                    o_total = U_record[-1]
+                    print(f"Re-oxidization pass {n+1} complete. output → {reox_output_dir}")
+                output_dir = f"{output_dir}_reoxidized"
+
+
+            report = GenSimReport(cfg, x_grid, o_total, time_hold, bake_K, t_h, temps_K, profile, output_dir)
+            report.generate()
 
             # ── Completion message with timing ──
             elapsed = time.perf_counter() - tic
-            print(
-                f"Done: {profile} profile @ {bake_C:.0f}°C, hold time: {time_hold:.2f}h, total_time={total_h:.2f}h,\n "
-                f"Completed in {elapsed:.2f}s, output → {output_dir}"
-            )
+            print(f"Done: {profile} profile @ {bake_C:.0f}°C, hold time: {time_hold:.2f}h, total_time={total_h:.2f}h,\n "
+                  f"Completed in {elapsed:.2f}s, output → {output_dir}")
 
 ###############################################################################
 # ─── Command‑line interface ─────────────────────────────────────────────────
@@ -168,26 +167,34 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False) -> N
 
 def main() -> None:
     """Entry point for the *sim* console script."""
-
     parser = argparse.ArgumentParser(
         description="Run Nb heat‑treatment simulation sweep from a YAML config.",
         prog="sim",
     )
 
     parser.add_argument("-c", "--config", metavar="CONFIG", help="YAML config file")
+
     parser.add_argument(
         "-p", "--profile",
         choices=["const", "time_dep", "two_step"],
         default="time_dep",
         help="Temperature profile to use",
     )
+
+    parser.add_argument(
+        "-r", "--reoxidize",
+        metavar="N",
+        type=int,
+        nargs="?",
+        const=1,
+        default=0,
+        help="Number of re‑oxidization passes (omit flag for 0)",
+    )
+
     parser.add_argument("pos_config", nargs="?", metavar="CONFIG", help="Positional YAML config")
-
-    subparsers = parser.add_subparsers(dest="command")
-    subparsers.add_parser("reoxidize", help="Run a second pass starting from the final oxygen profile")
-
     args = parser.parse_args()
 
+    # ── Resolve config path ─────────────────────────────────────
     cfg_name = args.config or args.pos_config or "sim_config.yml"
     if not os.path.splitext(cfg_name)[1]:
         cfg_name += ".yml"
@@ -197,16 +204,21 @@ def main() -> None:
 
     cfg = load_sim_config(cfg_path)
 
+    # ── Prepare output directory ────────────────────────────────
     stamp = datetime.now().strftime("%Y-%m-%d")
     ghash = _git_hash() or "no-git"
     run_dir = Path("experiments") / f"{stamp}_{args.profile}_{ghash}"
-    (run_dir / "results").mkdir(parents=True, exist_ok=True)
+    cfg.output.directory = str(run_dir / "results")
 
     _save_run_metadata(cfg_path, args, run_dir, cfg)
 
-    cfg.output.directory = str(run_dir / "results")
-
-    run_simulation(cfg, profile=args.profile, reoxidize=(args.command == "reoxidize"))
+    # ── Pass the count, plus boolean flag ──────────────────────
+    run_simulation(
+        cfg,
+        profile=args.profile,
+        reoxidize=(args.reoxidize > 0),
+        n_reoxidize=args.reoxidize,
+    )
 
 
 if __name__ == "__main__":
