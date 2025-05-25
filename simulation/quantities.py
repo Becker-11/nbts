@@ -147,6 +147,28 @@ def J(
         )
     )
 
+def J_c(
+    penetration_depth_nm: Annotated[float, 0:None],
+    B_c: float=199.3,  # Critical magnetic field in mT (default for Nb)
+):
+    """Critical current density for the simple London model.
+    
+    Args:
+        penetration_depth_nm: Magnetic penetration depth (nm).
+        B_c: Critical magnetic field (mT).
+    
+    Returns:
+        The critical current density (A m^-2).
+    """
+
+    # calculate the prefactor for the conversion
+    G_per_T = 1e4
+    m_per_nm = 1e-9
+    mu_0 = constants.value("vacuum mag. permeability") * G_per_T
+    penetration_depth_m = penetration_depth_nm * m_per_nm
+    
+    return B_c / (mu_0 * penetration_depth_m )
+
 
 def chi(a_imp, n_max=2000) -> float:
     """

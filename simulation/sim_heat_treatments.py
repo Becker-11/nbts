@@ -129,7 +129,7 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False, n_re
     output_dir = cfg.output.directory
     reox_output_dir = output_dir
     total_simulations = len(times_h) * len(bake_C_list)
-    threshold = 0
+    threshold = 400
 
     for bake_C in bake_C_list:
         bake_K = bake_C + 273.15
@@ -169,15 +169,12 @@ def run_simulation(cfg, profile: str = "time_dep", reoxidize: bool = False, n_re
     if total_simulations > threshold:
         # ── Generate analysis report ──────────────────────────────
         if reoxidize:
-            analyzer = CurrentDensityAnalyzer(output_dir, "reoxidized")
-            analyzer.run()
+            CurrentDensityAnalyzer(output_dir, "reoxidized").run()
             for n in range(n_reoxidize):
                 pass_dir = f"{reox_output_dir}_reoxidize_{n+1}"
-                analyzer = CurrentDensityAnalyzer(pass_dir, f"reoxidize_{n+1}")
-                analyzer.run()
+                CurrentDensityAnalyzer(pass_dir, f"reoxidize_{n+1}").run()
         else:
-            analyzer = CurrentDensityAnalyzer(output_dir)
-            analyzer.run()
+            CurrentDensityAnalyzer(output_dir).run()
 
 ###############################################################################
 # ─── Command‑line interface ─────────────────────────────────────────────────

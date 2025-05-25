@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from simulation.gle_solver import GLESolver
-from simulation.quantities import ell, lambda_eff, lambda_eff_corr, J, B
+from simulation.quantities import ell, lambda_eff, lambda_eff_corr, J, B, J_c
 
 
 class GenSimReport:
@@ -66,6 +66,10 @@ class GenSimReport:
         self.B_dirty_corr = None
         self.J_clean_corr = None
         self.J_dirty_corr = None
+        self.J_c = None
+        self.H0 = cfg.args.applied_field_mT 
+        self.dead_layer = cfg.args.dead_layer_nm 
+        self.demag_factor = cfg.args.demag_factor 
         # factors
         self.suppression_factor = None
         self.enhancement_factor = None
@@ -84,24 +88,25 @@ class GenSimReport:
         # GLE solver for screening & current density
         gle = GLESolver(self.x, self.lambda_eff_val)
         gle_corr = GLESolver(self.x, self.lambda_eff_val_corr)
-        # TODO: add applied field parameter to simulation
-        args = (100.0, 0.0, 0.0)
+
+        args = (self.H0, self.dead_layer, self.demag_factor)
         self.screening_profile = gle.screening_profile(self.x, *args)
         self.screening_profile_corr = gle_corr.screening_profile(self.x, *args)
         self.current_density = gle.current_density(self.x, *args)
         self.current_density_corr = gle_corr.current_density(self.x, *args)
 
         # reference B and J extrema via analytical formulas
-        H0 = args[0]
-        self.B_dirty = B(self.x, H0, self.lambda_eff_val.max())   # max B
-        self.B_clean = B(self.x, H0, self.lambda_eff_val.min())   # min B
-        self.J_dirty = J(self.x, H0, self.lambda_eff_val.max())   # max J
-        self.J_clean = J(self.x, H0, self.lambda_eff_val.min())   # min J
+        self.B_dirty = B(self.x, self.H0, self.lambda_eff_val.max())   # max B
+        self.B_clean = B(self.x, self.H0, self.lambda_eff_val.min())   # min B
+        self.J_dirty = J(self.x, self.H0, self.lambda_eff_val.max())   # max J
+        self.J_clean = J(self.x, self.H0, self.lambda_eff_val.min())   # min J
 
-        self.B_dirty_corr = B(self.x, H0, self.lambda_eff_val_corr.max())   # max B (corr)
-        self.B_clean_corr = B(self.x, H0, self.lambda_eff_val_corr.min())   # min B (corr)
-        self.J_dirty_corr = J(self.x, H0, self.lambda_eff_val_corr.max())   # max J (corr)
-        self.J_clean_corr = J(self.x, H0, self.lambda_eff_val_corr.min())   # min J (corr)
+        self.B_dirty_corr = B(self.x, self.H0, self.lambda_eff_val_corr.max())   # max B (corr)
+        self.B_clean_corr = B(self.x, self.H0, self.lambda_eff_val_corr.min())   # min B (corr)
+        self.J_dirty_corr = J(self.x, self.H0, self.lambda_eff_val_corr.max())   # max J (corr)
+        self.J_clean_corr = J(self.x, self.H0, self.lambda_eff_val_corr.min())   # min J (corr)
+
+        self.J_c = J_c(self.lambda_eff_val_corr)
 
         # derived factors
         J0 = self.J_clean_corr[0]
@@ -121,6 +126,7 @@ class GenSimReport:
     def generate(self):
         """Generate set of desired plots from computed quantities."""
         self.plot_overview()
+        self.plot_current_density()
         self.plot_suppression_factor()
         self.plot_temp_profile()
         self.plot_suppression_factor_comparison()
@@ -211,6 +217,12 @@ class GenSimReport:
         ax.set_ylim(0, None)
         ax.legend()
 
+    def plot_critical_current(self, ax):
+        ax.plot(self.x, self.J_c/1e11, '-', label='Critical current density')
+        ax.set_ylabel(r'$J_c(x)$ ($10^{11}$ A m$^{-2}$)')
+        ax.set_ylim(0, None)
+        ax.legend()
+
     def plot_temp(self, ax):
         ax.plot(self.time_h, self.temps_K - 273.15, label=self.profile)
         ax.set_xlabel('Time (h)')
@@ -281,6 +293,21 @@ class GenSimReport:
         }
         self.save_report(fig, data, tag='overview')
         return fig
+
+    def plot_current_density(self):
+        if not self.COMPUTE:
+            self.compute()
+        fig, axes = plt.subplots(2, 1, sharex=True, figsize=(4.8, 4.8), constrained_layout=True)
+        self.plot_current(axes[0])
+        self.plot_critical_current(axes[1])
+        axes[-1].set_xlim(0,150)
+        plt.suptitle(f"Current density profiles for T = {self.T-273.15:.1f} C and t = {self.t:.1f} h")
+        data = {
+            'critical_current_density':    self.J_c
+        }
+        self.save_report(fig, data, tag='critical_current_density')
+        return fig
+
 
     def plot_suppression_factor_comparison(self):
         if not self.COMPUTE:
