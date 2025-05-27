@@ -25,6 +25,8 @@ import glob
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.interpolate import griddata, CubicSpline
+from scipy.ndimage import gaussian_filter
 
 # ─── helpers ------------------------------------------------------------
 def parse_time_temp(dirname: str):
@@ -43,9 +45,8 @@ def surface(df: pd.DataFrame, col: str):
         s = df.loc[[df["x"].idxmin()], col]
     return s.iloc[0]
 
-
-# ─── main heat‑map routine ---------------------------------------------
-def plot_overview_heatmaps(base_dir: Path, out_dir: Path):
+# ─── main heat‑map routine ------------------------------------------------
+def plot_overview_heatmaps(base_dir: Path, out_dir: Path, time, temp):
     folders = glob.glob(str(base_dir / "results" / "sim_t*_T*"))
 
     t_vals, T_vals, Z_A, Z_B, Z_C = [], [], [], [], []
@@ -55,26 +56,33 @@ def plot_overview_heatmaps(base_dir: Path, out_dir: Path):
         if t is None:
             continue
 
-        df_path = Path(f) / "data" / "current_density_corrected.csv"
+        df_path = Path(f) / "data" / "smooth_current_density.csv"
         if not df_path.is_file():
             continue
         df = pd.read_csv(df_path, skipinitialspace=True)
-        if not {"x", "current_density_corrected", "J_clean_corr"}.issubset(df.columns):
+        if not {"x", "current_density_smooth", "J_clean"}.issubset(df.columns):
             continue
 
-        J_max  = df["current_density_corrected"].max()
-        J_surf = surface(df, "J_clean_corr")
-        ratioA = J_max / J_surf
+        # --- sub‑grid peak on a cubic spline -----------------------------
+        x  = df["x" ].to_numpy()
+        J  = df["current_density_smooth"].to_numpy()
+        spl = CubicSpline(x, J, bc_type="natural")
+        fine_x = np.linspace(x.min(), x.max(), 40001)
+        J_fine = spl(fine_x)
+        idx_max = J_fine.argmax()
+        x_peak = float(fine_x[idx_max])          # smooth peak position
+        J_max  = float(J_fine[idx_max])          # smooth peak value
 
-        x_peak = df.loc[df["current_density_corrected"].idxmax(), "x"]
+        J_surf_clean  = surface(df, "J_clean")   # reference @ x = 0
+        J_surf_smooth = float(spl(0.0))          # smooth J at surface
 
-        J_max_surf = surface(df, "current_density_corrected")
-        ratioC     = J_max_surf / J_surf
+        ratioA = J_max         / J_surf_clean
+        ratioC = J_surf_smooth / J_surf_clean
 
         t_vals.append(t);   T_vals.append(T)
         Z_A.append(ratioA); Z_B.append(x_peak); Z_C.append(ratioC)
 
-    # turn lists into 2‑D grids
+    # --------------------------- remainder unchanged ----------------------
     times = np.unique(t_vals)
     temps = np.unique(T_vals)
     shape = (len(temps), len(times))
@@ -96,18 +104,49 @@ def plot_overview_heatmaps(base_dir: Path, out_dir: Path):
          r'$\tilde{J}_0 \;\equiv\; \dfrac{J(x=0)}{\max\{J_{\mathrm{clean}}(x)\}}$', LEVELS_C),
     ]
 
-    X, Y = np.meshgrid(times, temps)
-    for fname, Z, cbar_label, n_levels in heatmap_specs:
+    ti = np.linspace(times.min(), times.max(), len(times)*10)
+    Ti = np.linspace(temps.min(), temps.max(), len(temps)*10)
+    Xd, Yd = np.meshgrid(ti, Ti)
+
+    def valid_points(Z2d):
+        jj, ii = np.nonzero(~np.isnan(Z2d))
+        return np.column_stack([times[ii], temps[jj]]), Z2d[jj, ii]
+
+    for fname, Z2d, cbar_label, n_levels in heatmap_specs:
+        # if fname == "x_peak_position.pdf":
+        #     pts, vals = valid_points(Z2d)
+        #     Z_plot = griddata(pts, vals, (Xd, Yd),
+        #                       method='linear', fill_value=np.nan)
+        #     #Z_plot = gaussian_filter(Z_plot, sigma=1.0, mode='nearest')
+        #     X_plot, Y_plot = Xd, Yd
+        # else:
+        Z_plot = Z2d
+        X_plot, Y_plot = np.meshgrid(times, temps)
+
         fig, ax = plt.subplots(figsize=(6.4, 4.8), constrained_layout=True)
-        mesh = ax.pcolormesh(X, Y, Z, cmap=COLORMAP, shading="gouraud")
+        mesh = ax.pcolormesh(X_plot, Y_plot, Z_plot,
+                             cmap=COLORMAP, shading='gouraud')
+        cs = ax.contour(X_plot, Y_plot, Z_plot,
+                        levels=n_levels, colors='w', linewidths=0.8)
+        ax.clabel(cs, inline=True, fontsize=7)
+
         cbar = fig.colorbar(mesh, ax=ax)
         cbar.set_label(cbar_label)
-        cs = ax.contour(X, Y, Z, levels=n_levels, colors="w", linewidths=0.8)
-        ax.clabel(cs, inline=True, fontsize=7)
-        ax.set_xlabel("Time (h)")
-        ax.set_ylabel("Temperature (°C)")
+
+        ax.scatter(time, temp, s=30, facecolor='white',
+                   edgecolor='black', lw=1.3, zorder=4)
+        ax.annotate(rf'{time:.1f} h, {temp:.0f} °C',
+                    xy=(time, temp), xytext=(6, 6), textcoords='offset points',
+                    ha='left', va='bottom', fontsize=8,
+                    bbox=dict(boxstyle='round,pad=0.2',
+                              fc='white', alpha=0.7, lw=0))
+
+        ax.set_xlabel(r'$t$ (h)')
+        ax.set_ylabel(r'$T$ ($^{\circ}$C)')
         fig.savefig(out_dir / fname, dpi=DPI)
         plt.close(fig)
+
+
 
 
 # ────────────────────────────────────────────────────────────────────────
@@ -128,8 +167,8 @@ def get_data(sim_dir: Path) -> dict[str, np.ndarray]:
         data[key] = df
 
     # shorthand arrays ---------------------------------------------------
-    x = data["current_density"]["x"].to_numpy()
-    data["x"] = x
+    data['x_short'] = data["current_density"]["x"].to_numpy()
+    data["x"] = data["smooth_current_density"]["x"].to_numpy()
 
     # Oxygen total (at. %) ----------------------------------------------
     if "oxygen_diffusion_profile" in data:
@@ -149,13 +188,13 @@ def get_data(sim_dir: Path) -> dict[str, np.ndarray]:
         data["B_clean"] = data["screening_profile_corrected"]["B_clean_corr"].to_numpy()
         data["B_dirty"] = data["screening_profile_corrected"]["B_dirty_corr"].to_numpy()
 
-    if "current_density_corrected" in data:
-        data["current_density"] = data["current_density_corrected"]["current_density_corrected"].to_numpy()
-        data["J_clean"] = data["current_density_corrected"]["J_clean_corr"].to_numpy()
-        data["J_dirty"] = data["current_density_corrected"]["J_dirty_corr"].to_numpy()
+    if "smooth_current_density" in data:
+        data["current_density"] = data["smooth_current_density"]["current_density_smooth"].to_numpy()
+        data["J_clean"] = data["smooth_current_density"]["J_clean"].to_numpy()
+        data["J_dirty"] = data["smooth_current_density"]["J_dirty"].to_numpy()
     
-    if "critical_current_density" in data:
-        data["J_c"] = data["critical_current_density"]["critical_current_density"].to_numpy()
+    if "smooth_critical_current_density" in data:
+        data["J_c"] = data["smooth_critical_current_density"]["critical_current_density_smooth"].to_numpy()
 
     # Metadata -----------------------------------------------------------
     t, T = parse_time_temp(sim_dir.name)
@@ -168,11 +207,11 @@ def get_data(sim_dir: Path) -> dict[str, np.ndarray]:
 # Stateless small plotters ----------------------------------------------
 def _plot_currents(ax, d):
     ax.plot(d["x"], d["current_density"]/1e11, label=r'$J(x)$')
-    ax.plot(d["x"], d["J_dirty"]/1e11,  ':', label=r'$J(x)$ dirty')
-    ax.plot(d["x"], d["J_clean"]/1e11,  ':', label=r'$J(x)$ clean')
+    ax.plot(d["x"], d["J_dirty"]/1e11,  ':', label=r'$J_\mathrm{dirty}(x)$')
+    ax.plot(d["x"], d["J_clean"]/1e11,  ':', label=r'$J_\mathrm{clean}(x)$')
     ax.plot(d["x"], d["J_c"]/1e11, label=r'$J_c(x)$')
     ax.set_ylim(0, None)
-    ax.legend()
+    ax.legend(frameon=False)
 
 def _plot_critical(ax, d):
     if "J_c" in d:
@@ -181,16 +220,14 @@ def _plot_critical(ax, d):
         ax.legend()
 
 def _plot_current_ratio(ax, d):
-    if "current_density" in d and "J_c" in d:
-        ratio = d["current_density"] / d["J_c"]
-        ax.plot(d["x"], ratio, label=r'$J(x)$ / $J_c$')
-        ax.set_ylabel(r'name?')
-        ax.set_ylim(0, None)
-        ax.legend()
+    ratio = d["current_density"] / d["J_c"]
+    ax.plot(d["x"], ratio, label=r'$J(x)$ / $J_c$')
+    ax.set_ylabel(r'$j(x) \equiv \frac{ J(x) }{ J_{c}(x) }$')
+    ax.set_ylim(0, None)
+    #ax.legend()
 
 # High‑level wrapper -----------------------------------------------------
-def plot_current_densities(sim_dir: Path, out_dir: Path):
-    d = get_data(sim_dir)
+def plot_current_densities(sim_dir: Path, out_dir: Path, d):
     fig, axes = plt.subplots(2, 1, sharex=True, figsize=(4.8, 4.8),
                              constrained_layout=True)
     _plot_currents(axes[0], d)
@@ -198,8 +235,8 @@ def plot_current_densities(sim_dir: Path, out_dir: Path):
     axes[0].set_ylabel(r'Current Densities ($10^{11}$ A m$^{-2}$)')
     axes[-1].set_xlim(0, 150)
     axes[0].set_ylim(0, 6)
-    axes[-1].set_xlabel("Depth x (nm)")
-    plt.suptitle(f"T = {d['T']:.1f} °C,  t = {d['t']:.1f} h")
+    axes[-1].set_xlabel(r"$x$ (nm)")
+    #plt.suptitle(f"T = {d['T']:.1f} °C,  t = {d['t']:.1f} h")
     fname = sim_dir.name + "_current_density.pdf"
     fig.savefig(out_dir / fname, dpi=DPI)
     plt.close(fig)
@@ -209,49 +246,48 @@ def plot_current_densities(sim_dir: Path, out_dir: Path):
 # Overview quantities (oxygen, mean‑free‑path, λ, screening) ------------
 def _plot_oxygen(ax, d):
     if "o_total" in d:
-        ax.plot(d["x"], d["o_total"], label=r'Oxygen Concentration')
+        ax.plot(d["x_short"], d["o_total"], label=r'Oxygen Concentration')
         ax.set_xlim(0, 150)
         ax.set_ylabel(r'[O] at.%')
-        ax.legend()
+        #ax.legend()
 
 def _plot_mfp(ax, d):
     if "ell_val" in d:
-        line, = ax.plot(d["x"], d["ell_val"], label=r'Electron Mean‑free‑path')
-        ax.plot(d['x'], np.full(len(d["x"]), d["ell_val"].min()), linestyle=':', zorder=1)
-        ax.plot(d['x'], np.full(len(d["x"]), d["ell_val"].max()), linestyle=':', zorder=1)
+        line, = ax.plot(d["x_short"], d["ell_val"], label=r'Electron Mean‑free‑path')
+        ax.plot(d['x_short'], np.full(len(d["x_short"]), d["ell_val"].min()), linestyle=':', zorder=1)
+        ax.plot(d['x_short'], np.full(len(d["x_short"]), d["ell_val"].max()), linestyle=':', zorder=1)
         ax.set_ylabel(r'$\ell$ (nm)')
         ax.set_xlim(0, 150)
         ax.set_ylim(0, None)
-        ax.legend(
-            loc='upper right',          # anchor = upper‑right corner of the box
-            bbox_to_anchor=(1, 0.92),   # (x, y) in axes coords → move down to 92 %
-            frameon=True, framealpha=0.9
-        )
+        # ax.legend(
+        #     loc='upper right',          # anchor = upper‑right corner of the box
+        #     bbox_to_anchor=(1, 0.92),   # (x, y) in axes coords → move down to 92 %
+        #     frameon=True, framealpha=0.9
+        # )
 
 def _plot_pen_depth(ax, d):
-        line, = ax.plot(d["x"], d["lambda_eff_val"], label=r'Magnetic Penetration Depth')
-        ax.plot(d["x"], np.full(len(d["x"]), d["lambda_eff_val"].min()), linestyle=':', zorder=1)
-        ax.plot(d["x"], np.full(len(d["x"]), d["lambda_eff_val"].max()), linestyle=':', zorder=1)
+        line, = ax.plot(d["x_short"], d["lambda_eff_val"], label=r'Magnetic Penetration Depth')
+        ax.plot(d["x_short"], np.full(len(d["x_short"]), d["lambda_eff_val"].min()), linestyle=':', zorder=1)
+        ax.plot(d["x_short"], np.full(len(d["x_short"]), d["lambda_eff_val"].max()), linestyle=':', zorder=1)
         ax.set_xlim(0, 150)
         ax.set_ylabel(r'$\lambda$ (nm)')
-        ax.legend(
-            loc='upper right',          # anchor = upper‑right corner of the box
-            bbox_to_anchor=(1, 0.92),   # (x, y) in axes coords → move down to 92 %
-            frameon=True, framealpha=0.9
-        )
+        # ax.legend(
+        #     loc='upper right',          # anchor = upper‑right corner of the box
+        #     bbox_to_anchor=(1, 0.92),   # (x, y) in axes coords → move down to 92 %
+        #     frameon=True, framealpha=0.9
+        # )
 
 def _plot_screening(ax, d):
     if "screening_profile" in d:
-        ax.plot(d["x"], d["screening_profile"], label='Magnetic Screening Profile')
-        ax.plot(d["x"], d["B_dirty"], linestyle=':', label=r'$B$ dirty', zorder=1)
-        ax.plot(d["x"], d["B_clean"], linestyle=':', label=r'$B$ clean', zorder=1)
+        ax.plot(d["x_short"], d["screening_profile"], label='Magnetic Screening Profile')
+        ax.plot(d["x_short"], d["B_dirty"], linestyle=':', label=r'$B$ dirty', zorder=1)
+        ax.plot(d["x_short"], d["B_clean"], linestyle=':', label=r'$B$ clean', zorder=1)
         ax.set_ylabel(r'$B(x)$ (G)')
         ax.set_xlim(0, 150)
         ax.set_ylim(0, None)
-        ax.legend()
+        #ax.legend()
 
-def plot_overview_quantities(sim_dir: Path, out_dir: Path):
-    d = get_data(sim_dir)
+def plot_overview_quantities(sim_dir: Path, out_dir: Path, d):
     fig, axes = plt.subplots(4, 1, sharex=True, figsize=(4.8, 6.8),
                              constrained_layout=True)
 
@@ -261,8 +297,8 @@ def plot_overview_quantities(sim_dir: Path, out_dir: Path):
     _plot_screening(axes[3], d)
 
 
-    axes[-1].set_xlabel("Depth x (nm)")
-    fig.suptitle(f"Overview,  T = {d['T']:.1f} °C,  t = {d['t']:.1f} h")
+    axes[-1].set_xlabel(r"$x$ (nm)")
+    #fig.suptitle(f"Overview,  T = {d['T']:.1f} °C,  t = {d['t']:.1f} h")
 
     fname = sim_dir.name + "_overview.pdf"
     fig.savefig(out_dir / fname, dpi=DPI)
@@ -275,16 +311,18 @@ def main():
     base = Path(BASE_DIR)
     out  = base / OUTPUT_DIR
     out.mkdir(exist_ok=True)
+    sim_dir = base / RESULTS_DIR / SIM_DIR
+    data = get_data(sim_dir)
 
     # overview heat‑maps
-    plot_overview_heatmaps(base, out)
+    plot_overview_heatmaps(base, out, data["t"], data["T"])
     print(f"Heat‑maps written → {out}")
 
 
     # single simulation profile
-    sim_dir = base / RESULTS_DIR / SIM_DIR
-    plot_current_densities(sim_dir, out)
-    plot_overview_quantities(sim_dir, out)
+
+    plot_current_densities(sim_dir, out, data)
+    plot_overview_quantities(sim_dir, out, data)
     print(f"Example profile written → {out}")
     print(f"single simulation overview written → {out}")
 
