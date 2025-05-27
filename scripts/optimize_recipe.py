@@ -19,8 +19,8 @@ Strategy
 """
 
 # ─── CONFIG SECTION ─────────────────────────────────────────────────────
-PARENT_DIR = "experiments/2025-05-18_time_dep_9db8969"
-STEP_GLOB  = "results_reoxidize*"      # matches _1, _2, _d, …
+PARENT_DIR = "experiments/2025-05-24_const_e10b3cd"
+STEP_GLOB  = "results"      # matches _1, _2, _d, …
 N_PASSES   = None                      # auto‑detect everything present
 TOP_K      = 5                         # how many best combos to list
 # ────────────────────────────────────────────────────────────────────────
