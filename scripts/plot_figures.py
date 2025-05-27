@@ -89,16 +89,16 @@ def plot_overview_heatmaps(base_dir: Path, out_dir: Path):
 
     heatmap_specs = [
         ("ratio_max_over_surface.pdf", A,
-         "maximum $J(x)$ / $J_{\\rm clean}$", LEVELS_A),
+         r'$\tilde{J}\,\equiv\; \frac{\max\{J(x)\}}{\max\{J_{\mathrm{clean}}(x)\}}$', LEVELS_A),
         ("x_peak_position.pdf", B,
-         "x‑position of $J$ peak (nm)", LEVELS_B),
+         r'$\tilde{x}\;\equiv\;\operatorname{arg\,max}_{x}\,\{J(x)\}$', LEVELS_B),
         ("surface_current_ratio.pdf", C,
-         "$J(0)$ / $J_{\\rm clean}$", LEVELS_C),
+         r'$\tilde{J}_0 \;\equiv\; \dfrac{J(x=0)}{\max\{J_{\mathrm{clean}}(x)\}}$', LEVELS_C),
     ]
 
     X, Y = np.meshgrid(times, temps)
     for fname, Z, cbar_label, n_levels in heatmap_specs:
-        fig, ax = plt.subplots(figsize=(8, 6), constrained_layout=True)
+        fig, ax = plt.subplots(figsize=(6.4, 4.8), constrained_layout=True)
         mesh = ax.pcolormesh(X, Y, Z, cmap=COLORMAP, shading="gouraud")
         cbar = fig.colorbar(mesh, ax=ax)
         cbar.set_label(cbar_label)
@@ -140,10 +140,8 @@ def get_data(sim_dir: Path) -> dict[str, np.ndarray]:
         data["ell_val"] = data["mean_free_path"]["mean_free_path"].to_numpy()
 
     # Penetration depths -------------------------------------------------
-    if "penetration_depth" in data:
-        data["lambda_eff_val"] = data["penetration_depth"]["penetration_depth"].to_numpy()
-    if "penetration_depth_corr" in data:
-        data["lambda_eff_val_corr"] = data["penetration_depth_corr"]["penetration_depth_corr"].to_numpy()
+    if "penetration_depth_corrected" in data:
+        data["lambda_eff_val"] = data["penetration_depth_corrected"]["penetration_depth_corrected"].to_numpy()
 
     # Screening & B fields ----------------------------------------------
     if "screening_profile_corrected" in data:
@@ -168,10 +166,11 @@ def get_data(sim_dir: Path) -> dict[str, np.ndarray]:
 
 # ────────────────────────────────────────────────────────────────────────
 # Stateless small plotters ----------------------------------------------
-def _plot_current(ax, d):
+def _plot_currents(ax, d):
     ax.plot(d["x"], d["current_density"]/1e11, label=r'$J(x)$')
     ax.plot(d["x"], d["J_dirty"]/1e11,  ':', label=r'$J(x)$ dirty')
     ax.plot(d["x"], d["J_clean"]/1e11,  ':', label=r'$J(x)$ clean')
+    ax.plot(d["x"], d["J_c"]/1e11, label=r'$J_c(x)$')
     ax.set_ylim(0, None)
     ax.legend()
 
@@ -194,8 +193,7 @@ def plot_current_densities(sim_dir: Path, out_dir: Path):
     d = get_data(sim_dir)
     fig, axes = plt.subplots(2, 1, sharex=True, figsize=(4.8, 4.8),
                              constrained_layout=True)
-    _plot_current(axes[0], d)
-    _plot_critical(axes[0], d)
+    _plot_currents(axes[0], d)
     _plot_current_ratio(axes[1], d)
     axes[0].set_ylabel(r'Current Densities ($10^{11}$ A m$^{-2}$)')
     axes[-1].set_xlim(0, 150)
@@ -211,36 +209,42 @@ def plot_current_densities(sim_dir: Path, out_dir: Path):
 # Overview quantities (oxygen, mean‑free‑path, λ, screening) ------------
 def _plot_oxygen(ax, d):
     if "o_total" in d:
-        ax.plot(d["x"], d["o_total"], label=r'[O] at.%')
+        ax.plot(d["x"], d["o_total"], label=r'Oxygen Concentration')
         ax.set_xlim(0, 150)
-        ax.set_ylabel(r'$[\mathrm{O}]$ (at.%)')
+        ax.set_ylabel(r'[O] at.%')
         ax.legend()
 
 def _plot_mfp(ax, d):
     if "ell_val" in d:
-        line, = ax.plot(d["x"], d["ell_val"], label='Mean‑free‑path')
-        ax.axhline(d["ell_val"].min(), linestyle=':', label=r'Min $\ell$')
-        ax.axhline(d["ell_val"].max(), linestyle=':', label=r'Max $\ell$')
+        line, = ax.plot(d["x"], d["ell_val"], label=r'Electron Mean‑free‑path')
+        ax.plot(d['x'], np.full(len(d["x"]), d["ell_val"].min()), linestyle=':', zorder=1)
+        ax.plot(d['x'], np.full(len(d["x"]), d["ell_val"].max()), linestyle=':', zorder=1)
         ax.set_ylabel(r'$\ell$ (nm)')
         ax.set_xlim(0, 150)
         ax.set_ylim(0, None)
-        ax.legend()
+        ax.legend(
+            loc='upper right',          # anchor = upper‑right corner of the box
+            bbox_to_anchor=(1, 0.92),   # (x, y) in axes coords → move down to 92 %
+            frameon=True, framealpha=0.9
+        )
 
 def _plot_pen_depth(ax, d):
-    if "lambda_eff_val" in d:
-        l1, = ax.plot(d["x"], d["lambda_eff_val"], label=r'$\lambda_{\text{eff}}$')
-        if "lambda_eff_val_corr" in d:
-            l2, = ax.plot(d["x"], d["lambda_eff_val_corr"],
-                          label=r'$\lambda_{\text{eff}}$ (corr)')
-            ax.legend([l1, l2])
+        line, = ax.plot(d["x"], d["lambda_eff_val"], label=r'Magnetic Penetration Depth')
+        ax.plot(d["x"], np.full(len(d["x"]), d["lambda_eff_val"].min()), linestyle=':', zorder=1)
+        ax.plot(d["x"], np.full(len(d["x"]), d["lambda_eff_val"].max()), linestyle=':', zorder=1)
         ax.set_xlim(0, 150)
         ax.set_ylabel(r'$\lambda$ (nm)')
+        ax.legend(
+            loc='upper right',          # anchor = upper‑right corner of the box
+            bbox_to_anchor=(1, 0.92),   # (x, y) in axes coords → move down to 92 %
+            frameon=True, framealpha=0.9
+        )
 
 def _plot_screening(ax, d):
     if "screening_profile" in d:
-        ax.plot(d["x"], d["screening_profile"], label='Screening')
-        ax.plot(d["x"], d["B_dirty"], ':', label='B dirty')
-        ax.plot(d["x"], d["B_clean"], ':', label='B clean')
+        ax.plot(d["x"], d["screening_profile"], label='Magnetic Screening Profile')
+        ax.plot(d["x"], d["B_dirty"], linestyle=':', label=r'$B$ dirty', zorder=1)
+        ax.plot(d["x"], d["B_clean"], linestyle=':', label=r'$B$ clean', zorder=1)
         ax.set_ylabel(r'$B(x)$ (G)')
         ax.set_xlim(0, 150)
         ax.set_ylim(0, None)
@@ -248,7 +252,7 @@ def _plot_screening(ax, d):
 
 def plot_overview_quantities(sim_dir: Path, out_dir: Path):
     d = get_data(sim_dir)
-    fig, axes = plt.subplots(4, 1, sharex=True, figsize=(4.8, 6.4 + 0.5 * 3.2),
+    fig, axes = plt.subplots(4, 1, sharex=True, figsize=(4.8, 6.8),
                              constrained_layout=True)
 
     _plot_oxygen   (axes[0], d)
@@ -269,7 +273,7 @@ def plot_overview_quantities(sim_dir: Path, out_dir: Path):
 # ─── running block ------------------------------------------------------
 def main():
     base = Path(BASE_DIR)
-    out  = base.parent / OUTPUT_DIR
+    out  = base / OUTPUT_DIR
     out.mkdir(exist_ok=True)
 
     # overview heat‑maps
