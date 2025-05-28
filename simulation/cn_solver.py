@@ -135,6 +135,12 @@ class CNSolver:
         U_record = np.zeros((self.N_t, self.N_x), dtype=np.double)
 
         for i, t in enumerate(self.t_grid):
+            # if self.t_grid[i] == self.t_grid[-1]:
+            #     print(f"Final time step: {i} / {self.N_t - 1} (t = {t:.2f} s), (T = {self.T[i]:.2f} K)")
+            # if self.t_grid[i] == self.t_grid[100]:
+            #     print(f"step time step : {i} / {self.N_t - 1} (t = {t:.2f} s), (T = {self.T[i]:.2f} K)")
+            # if self.t_grid[i] == self.t_grid[1800]:
+            #     print(f"bake time step : {i} / {self.N_t - 1} (t = {t:.2f} s), (T = {self.T[i]:.2f} K)")
             if i == 0:
                 # Record the initial condition
                 U_record[i] = self.U_initial.toarray()

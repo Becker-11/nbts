@@ -1,11 +1,11 @@
 time:
-  start_h: 20         # start time (h)
-  stop_h: 20         # stop time (h)
+  start_h: 48         # start time (h)
+  stop_h: 48         # stop time (h)
   step_h: 1          # time step (h)
 
 temperature:
-  start_C: 125.0      # start temp (°C)
-  stop_C: 125.0      # stop temp (°C)
+  start_C: 120.0      # start temp (°C)
+  stop_C: 120.0      # stop temp (°C)
   step_C: 1.0        # temp step (°C)
 
 temp_profile:
