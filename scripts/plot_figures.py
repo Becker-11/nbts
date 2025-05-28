@@ -113,36 +113,52 @@ def plot_overview_heatmaps(base_dir: Path, out_dir: Path, time, temp):
         return np.column_stack([times[ii], temps[jj]]), Z2d[jj, ii]
 
     for fname, Z2d, cbar_label, n_levels in heatmap_specs:
-        # if fname == "x_peak_position.pdf":
-        #     pts, vals = valid_points(Z2d)
-        #     Z_plot = griddata(pts, vals, (Xd, Yd),
-        #                       method='linear', fill_value=np.nan)
-        #     #Z_plot = gaussian_filter(Z_plot, sigma=1.0, mode='nearest')
-        #     X_plot, Y_plot = Xd, Yd
-        # else:
-        Z_plot = Z2d
-        X_plot, Y_plot = np.meshgrid(times, temps)
+        # ── choose grid (no interpolation shown here) ──────────────────────
+        Z_plot             = Z2d
+        X_plot, Y_plot     = np.meshgrid(times, temps)
 
-        fig, ax = plt.subplots(figsize=(6.4, 4.8), constrained_layout=True)
+        # ── build figure WITHOUT constrained_layout ───────────────────────
+        fig, ax = plt.subplots(figsize=(6.4, 4.8))   # ← no constrained_layout
+
+        # heat‑map + contour
         mesh = ax.pcolormesh(X_plot, Y_plot, Z_plot,
-                             cmap=COLORMAP, shading='gouraud')
-        cs = ax.contour(X_plot, Y_plot, Z_plot,
+                            cmap=COLORMAP, shading='gouraud')
+        cs   = ax.contour(X_plot, Y_plot, Z_plot,
                         levels=n_levels, colors='w', linewidths=0.8)
         ax.clabel(cs, inline=True, fontsize=7)
 
+        # colour‑bar
         cbar = fig.colorbar(mesh, ax=ax)
         cbar.set_label(cbar_label)
 
-        ax.scatter(time, temp, s=30, facecolor='white',
-                   edgecolor='black', lw=1.3, zorder=4)
-        ax.annotate(rf'{time:.1f} h, {temp:.0f} °C',
-                    xy=(time, temp), xytext=(6, 6), textcoords='offset points',
-                    ha='left', va='bottom', fontsize=8,
-                    bbox=dict(boxstyle='round,pad=0.2',
-                              fc='white', alpha=0.7, lw=0))
+        # ── coordinates for annotation outside the colour‑bar ─────────────
+        cbox   = cbar.ax.get_position()         # Bbox in figure‑fraction coords
+        bbox_ax = ax.get_position()     # (x0, y0, x1, y1) in figure coords
 
+        x_lab = 0.25                    # centred horizontally in the figure
+        y_lab = 0.5 * (bbox_ax.y1 + 1)  # halfway between axes‑top and figure‑top
+
+        # recipe marker
+        ax.scatter(time, temp, s=20, facecolor='firebrick', lw=1.3, zorder=4)
+
+        # centred label + straight arrow
+        ax.annotate(
+            rf'{time:.1f} h, {temp:.0f} °C',
+            xy=(time + 0.5, temp + 1.5), xycoords='data',            # arrow tail
+            xytext=(x_lab, y_lab), textcoords='figure fraction',
+            ha='center', va='center',
+            fontsize=8,
+            bbox=dict(boxstyle='round,pad=0.3',
+                    fc='white', alpha=0.85, lw=0.8),
+            arrowprops=dict(arrowstyle='->', lw=0.8, color='firebrick',
+                            shrinkA=0, shrinkB=0),
+            zorder=5
+        )
+
+        # labels and save
         ax.set_xlabel(r'$t$ (h)')
         ax.set_ylabel(r'$T$ ($^{\circ}$C)')
+        fig.tight_layout()                 # tidy margins (ignores annotation)
         fig.savefig(out_dir / fname, dpi=DPI)
         plt.close(fig)
 
