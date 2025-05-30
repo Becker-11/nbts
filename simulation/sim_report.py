@@ -119,7 +119,7 @@ class GenSimReport:
         self.COMPUTE = True
 
     def _make_folder(self):
-        folder = self.output_dir / f"sim_t{self.t:.1f}_T{int(self.T-273.15)}"
+        folder = self.output_dir / f"sim_t{self.t:.1f}_T{self.T-273.15:.1f}"
         folder.mkdir(parents=True, exist_ok=True)
         return folder
 
