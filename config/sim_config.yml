@@ -1,6 +1,6 @@
 time:
-  start_h: 1.0         # start time (h)
-  stop_h: 101.0         # stop time (h)
+  start_h: 7.0         # start time (h)
+  stop_h: 9.5         # stop time (h)
   step_h: 0.5          # time step (h)
 
 temperature:
@@ -45,6 +45,6 @@ output:
   directory: sim_output    # where to save CSVs & plots
 
 args:
-  applied_field_mT: 175.0   # applied magnetic field (mT)
+  applied_field_mT: 199.3   # applied magnetic field (mT)
   dead_layer_nm: 0      # dead‐layer thickness (nm)
   demag_factor: 0        # demagnetization factor (unitless)
