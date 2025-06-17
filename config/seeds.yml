@@ -1,0 +1,18 @@
+seeds:
+  # Low temperature, short hold
+  - name: t10_T125
+    profile: const      # instant set-point, flat hold
+    bake_C: 125         # peak temperature [°C]
+    time_h: 10           # hold time [h]
+
+  # Mid-range temperature, medium hold
+  - name: t48_T120
+    profile: const
+    bake_C: 120
+    time_h: 48
+
+  # High temperature, long hold
+  - name: t48_T120
+    profile: const
+    bake_C: 150
+    time_h: 70
