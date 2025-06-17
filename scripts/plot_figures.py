@@ -8,9 +8,9 @@ Custom plotting for paper figures
 """
 
 # ─── CONFIG SECTION ─────────────────────────────────────────────────────
-BASE_DIR     = "experiments/2025-05-28_const_e10b3cd"  # path to the main experiment folder
+BASE_DIR     = "experiments/2025-06-04_const_3c448e2"  # path to the main experiment folder
 RESULTS_DIR   = "results"     # subfolder inside BASE_DIR
-SIM_DIR      = "sim_t77.0_T100"  # subfolder inside RESULTS_DIR, for single sim plotsxs
+SIM_DIR      = "sim_t8.0_T125.0"  # subfolder inside RESULTS_DIR, for single sim plotsxs
 OUTPUT_DIR   = "figures"     # created inside BASE_DIR/..
 DPI          = 400                   # PDF/PNG output resolution
 # ────────────────────────────────────────────────────────────────────────
@@ -116,17 +116,22 @@ def _plot_critical(ax, d):
 
 def _plot_current_ratio(ax, d):
     # ── ratios -------------------------------------------------------------
+    scale = 1e-11
+    jc_max = d["J_c"].max()
+    jc_min = d["J_c"].min() 
+
     ratio        = d["current_density"] / d["J_c"]
-    ratio_clean  = d["J_clean"]        / d["J_c"]
-    ratio_dirty  = d["J_dirty"]        / d["J_c"]
+    ratio_dirty  = d["J_dirty"]        / jc_min
+    ratio_clean  = d["J_clean"]        / jc_max
 
     auc_main  = np.trapz(ratio,       d["x"])
-    auc_clean = np.trapz(ratio_clean, d["x"])
     auc_dirty = np.trapz(ratio_dirty, d["x"])
+    auc_clean = np.trapz(ratio_clean, d["x"])
 
     ln_main,  = ax.plot(d["x"], ratio,       label=rf'$J(x)/J_c$  (∫={auc_main:.2f})')
-    ln_clean, = ax.plot(d["x"], ratio_clean, label=rf'$J_\mathrm{{clean}}(x)/J_c$  (∫={auc_clean:.2f})',  linestyle=':')
     ln_dirty, = ax.plot(d["x"], ratio_dirty, label=rf'$J_\mathrm{{dirty}}(x)/J_c$  (∫={auc_dirty:.2f})', linestyle=':')
+    ln_clean, = ax.plot(d["x"], ratio_clean, label=rf'$J_\mathrm{{clean}}(x)/J_c$  (∫={auc_clean:.2f})',  linestyle=':')
+
 
     ax.set_ylabel(r'$j(x)=\dfrac{J(x)}{J_c(x)}$')
     ax.set_xlabel(r'$x\;(\mathrm{nm})$')
@@ -166,6 +171,7 @@ def _plot_oxygen(ax, d):
         ax.plot(d["x"], d["o_total"], label=r'Oxygen Concentration')
         ax.set_xlim(0, 150)
         ax.set_ylabel(r'[O] at.%')
+
         #ax.legend()
 
 def _plot_mfp(ax, d):
@@ -176,6 +182,7 @@ def _plot_mfp(ax, d):
         ax.set_ylabel(r'$\ell$ (nm)')
         ax.set_xlim(0, 150)
         ax.set_ylim(0, None)
+
         # ax.legend(
         #     loc='upper right',          # anchor = upper‑right corner of the box
         #     bbox_to_anchor=(1, 0.92),   # (x, y) in axes coords → move down to 92 %
